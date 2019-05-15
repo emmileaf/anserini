@@ -1,5 +1,4 @@
-from collection.pyjnius_utils import *
-from collection.threading_utils import *
+from pyjnius_utils import JIndexHelpers, JGenerators
 
 import logging
 logger = logging.getLogger(__name__)

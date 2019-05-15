@@ -7,10 +7,10 @@ from jnius import cast
 from enum import Enum
 
 
-JString = autoclass('java.lang.String')
-JPath = autoclass('java.nio.file.Path')
+# JString = autoclass('java.lang.String')
+# JPath = autoclass('java.nio.file.Path')
 JPaths = autoclass('java.nio.file.Paths')
-JList = autoclass('java.util.List')
+# JList = autoclass('java.util.List')
 
 
 class JIndexHelpers:
