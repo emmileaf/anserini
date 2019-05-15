@@ -7,10 +7,10 @@ from jnius import cast
 from enum import Enum
 
 
-# JString = autoclass('java.lang.String')
-# JPath = autoclass('java.nio.file.Path')
+JString = autoclass('java.lang.String')
+JPath = autoclass('java.nio.file.Path')
 JPaths = autoclass('java.nio.file.Paths')
-# JList = autoclass('java.util.List')
+JList = autoclass('java.util.List')
 
 
 class JIndexHelpers:
@@ -26,7 +26,7 @@ class JIndexHelpers:
         Counters = autoclass('io.anserini.index.IndexCollection$Counters')
         return Counters(IndexCollection)
     
-    
+
 class JCollections(Enum):
     CarCollection = autoclass('io.anserini.collection.CarCollection')
     ClueWeb09Collection = autoclass('io.anserini.collection.ClueWeb09Collection')

@@ -17,4 +17,3 @@ class Generator:
         except:
             raise ValueError(self.generator_class)
             
- 

@@ -12,6 +12,7 @@ from collection import pycollection, pygenerator
 import logging
 logger = logging.getLogger(__name__)
 
+
 def IterSegment(fs, generator, output_path, tokenizer, raw):
     
     results = []
@@ -67,7 +68,6 @@ def IterSegment(fs, generator, output_path, tokenizer, raw):
         logger.info("No documents parsed from segment: " + fs.segment_name)
         
     
-
 def IterCollection(input_path, collection_class, 
                    generator_class, output_path, 
                    threads=1, tokenize=None, raw=False):
@@ -106,4 +106,3 @@ def IterCollection(input_path, collection_class,
     
     logger.info("Total duration: %s", str(datetime.timedelta(seconds=elapsed)))
     
-
