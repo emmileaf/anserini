@@ -1,5 +1,6 @@
 from .pyjnius_utils import JCollections, JPaths, cast
 from .threading_utils import Counters
+import re
 
 import logging
 logger = logging.getLogger(__name__)
@@ -37,8 +38,9 @@ class FileSegment:
                                 segment)
             
         self.segment_path = segment_path
-        self.segment_name = collection.collection_path.relativize(
-                segment_path).toString().replace("\\", "-")
+        self.segment_name = re.sub(r"\\|\/", "-", 
+                                   collection.collection_path.relativize(
+                                           segment_path).toString())
         
 
     def __iter__(self):
