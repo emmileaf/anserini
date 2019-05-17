@@ -1,4 +1,4 @@
-from .pyjnius_utils import JCollections, JPaths
+from .pyjnius_utils import JCollections, JPaths, cast
 from .threading_utils import Counters
 
 import logging
@@ -28,7 +28,14 @@ class FileSegment:
 
     def __init__(self, collection, segment, segment_path):
         self.collection = collection
-        self.segment = segment
+        try:
+            self.segment = cast(collection.collection.getClass().getName() + 
+                                "$FileSegment", segment)
+        except:
+            logger.exception("Exception from casting FileSegment type...")
+            self.segment = cast("io.anserini.collection.BaseFileSegment", 
+                                segment)
+            
         self.segment_path = segment_path
         self.segment_name = segment_path.getFileName().toString()
 
@@ -52,7 +59,7 @@ class FileSegment:
                 self.collection.counters.skipped.increment()
                 return self.__next__()
         else:
-            if (self.segment.getNextRecordStatus().toString == 'ERROR'):
+            if (self.segment.getNextRecordStatus().toString() == 'ERROR'):
                 logger.error(self.segment_name + 
                              ": EOF - Error from getNextRecordStatus()")
                 self.collection.counters.errors.increment()
