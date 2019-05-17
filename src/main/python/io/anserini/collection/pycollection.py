@@ -80,5 +80,8 @@ class Document:
         self.segment = segment
         self.document = document
         self.id = document.id()
-        self.contents = document.content()
+        try:
+            self.contents = document.content()
+        except:
+            self.contents = document.getContent()
         
