@@ -37,7 +37,9 @@ class FileSegment:
                                 segment)
             
         self.segment_path = segment_path
-        self.segment_name = segment_path.getFileName().toString()
+        self.segment_name = collection.collection_path.relativize(
+                segment_path).toString().replace("\\", "-")
+        
 
     def __iter__(self):
         return self
