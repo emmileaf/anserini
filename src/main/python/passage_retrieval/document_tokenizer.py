@@ -35,30 +35,6 @@ class DocumentTokenizer:
             results.append({'id':'{}.{:06d}'.format(id, 0), 
                             'contents': contents})
         return results
-        
-    
-    def minchars_sentence(self, id, contents, lim):
-        # split into sentences, given minimum character limit        
-        tokens = []
-        passage = []
-        chars = 0
-        for s in sent_tokenize(contents):
-            if (chars < lim) or (not passage):
-                passage.append(s)
-                chars += len(s)
-            else:
-                token = " ".join(passage)
-                tokens.append(token)
-                passage = [s]
-                chars = len(s)
-                
-        token = " ".join(passage)
-        if (chars >= lim) or (not tokens):
-            tokens.append(token)
-        else:
-            tokens[-1] = " ".join([tokens[-1], token])
-
-        return tokens
 
     
     def minwords_sentence(self, id, contents, lim):
@@ -78,30 +54,6 @@ class DocumentTokenizer:
                 
         token = " ".join(passage)
         if (words >= lim) or (not tokens):
-            tokens.append(token)
-        else:
-            tokens[-1] = " ".join([tokens[-1], token])
-            
-        return tokens
-
-  
-    def minchars_word(self, id, contents, lim):
-        # split by words, given minimum character limit
-        tokens = []
-        passage = []
-        chars = 0
-        for s in contents.split():
-            if chars < lim:
-                passage.append(s)
-                chars += len(s)
-            else:
-                token = " ".join(passage)
-                tokens.append(token)
-                passage = [s]
-                chars = len(s)
-                
-        token = " ".join(passage)
-        if (chars >= lim) or (not tokens):
             tokens.append(token)
         else:
             tokens[-1] = " ".join([tokens[-1], token])
