@@ -54,12 +54,36 @@ import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
-/**
- * An instance of the <a href="https://catalog.ldc.upenn.edu/products/LDC2008T19">New York Times
- * Annotated Corpus</a>.
- * This class works for both compressed <code>tgz</code> files or uncompressed <code>xml</code>
- * files.
- */
+
+public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesCollection.Document> {
+    private static final Logger LOG = LogManager.getLogger(NewYorkTimesCollection.class);
+
+    public NewYorkTimesCollection(Path collectionPath){
+        super(collectionPath);
+        this.allowedFileSuffix = new HashSet<>(Arrays.asList(".xml", ".tgz"));
+    }
+
+    public class FileSegment extends BaseFileSegment<NewYorkTimesCollection.Document>{
+
+        private final NewYorkTimesCollection.Parser parser = new NewYorkTimesCollection.Parser();
+        private TarArchiveInputStream tarInput = null;
+        private ArchiveEntry nextEntry = null;
+
+        protected FileSegment(Path path) throws IOException {
+          super.path = path;
+          super.atEOF = false;
+
+          if (path.toString().endsWith(".tgz")) {
+            tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
+          }
+        }
+
+    }
+
+}
+
+
+
 public class NewYorkTimesCollection extends DocumentCollection
     implements SegmentProvider<NewYorkTimesCollection.Document> {
   private static final Logger LOG = LogManager.getLogger(NewYorkTimesCollection.class);
