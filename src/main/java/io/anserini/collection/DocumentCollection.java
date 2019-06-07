@@ -26,10 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 // // Option 1
 public abstract class DocumentCollection<T extends SourceDocument> implements Iterable<FileSegment<T>> {
@@ -51,38 +48,111 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     return collectionPath;
   }
 
+  protected abstract FileSegment<T> createFileSegment(Path p) throws IOException;
+
   @Override
   public final Iterator<FileSegment<T>> iterator(){
 
-    List<Path> paths = discover(this.path);
-    Iterator<Path> pathsIterator = paths.iterator();
+    List<Path> paths = discover(this.collectionPath);
+    Iterator<Path> pathsIterator  = paths.iterator();
+//    List<FileSegment<T>> segments = paths.map(p -> createFileSegment(p));
 
-    Iterator<FileSegment<T>> iter = new Iterator<FileSegment<T>>(){
+    return new Iterator<FileSegment<T>>(){
 
         @Override
         public boolean hasNext(){
-            return pathsIterator.hasNext();
+          return pathsIterator.hasNext();
         }
 
         @Override
         public FileSegment<T> next(){
-            Path segmentPath = pathsIterator.next();
-            return FileSegment(segmentPath);
+            try {
+              Path segmentPath = pathsIterator.next();
+              return createFileSegment(segmentPath);
+            } catch (IOException e){
+              // log file exception and skip?
+              return next();
+            }
         }
 
         @Override
         public void remove(){
-            throw new UnsupportedOperationException();
+          throw new UnsupportedOperationException();
         }
-    }
-    return iter;
+    };
   }
 
-  protected final List<Path> discover(Path path) {
-
+  protected final List<Path> discover(Path p) {
     final List<Path> paths = new ArrayList<>();
 
-    FileVisitor<Path> fv = new CollectionFileVisitor<Path>();  
+    FileVisitor<Path> fv = new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Path name = file.getFileName();
+        boolean shouldAdd = true;
+        if (Files.isSymbolicLink(file)) {
+          name = Files.readSymbolicLink(file);
+          if (Files.isDirectory(name)) {
+            paths.addAll(discover(name));
+            shouldAdd = false;
+          }
+        }
+        if (name != null) {
+          String fileName = name.toString();
+          for (String s : skippedFileSuffix) {
+            if (fileName.endsWith(s)) {
+              shouldAdd = false;
+              break;
+            }
+          }
+          if (shouldAdd && !allowedFileSuffix.isEmpty()) {
+            shouldAdd = false;
+            for (String s : allowedFileSuffix) {
+              if (fileName.endsWith(s)) {
+                shouldAdd = true;
+                break;
+              }
+            }
+          }
+          if (shouldAdd) {
+            for (String s : skippedFilePrefix) {
+              if (fileName.startsWith(s)) {
+                shouldAdd = false;
+                break;
+              }
+            }
+          }
+          if (shouldAdd && !allowedFilePrefix.isEmpty()) {
+            shouldAdd = false;
+            for (String s : allowedFilePrefix) {
+              if (fileName.startsWith(s)) {
+                shouldAdd = true;
+                break;
+              }
+            }
+          }
+        }
+        if (shouldAdd) {
+          paths.add(file);
+        }
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+        if (skippedDir.contains(dir.getFileName().toString())) {
+          LOG.info("Skipping: " + dir);
+          return FileVisitResult.SKIP_SUBTREE;
+        }
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult visitFileFailed(Path file, IOException ioe) {
+        LOG.error("Visiting failed for " + file.toString(), ioe);
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+    };
 
     try {
       Files.walkFileTree(p, fv);
@@ -91,76 +161,6 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     }
 
     return paths;
-  }
-
-  protected class CollectionFileVisitor extends SimpleFileVisitor<Path> {
-
-    @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      Path name = file.getFileName();
-      boolean shouldAdd = true;
-      if (Files.isSymbolicLink(file)) {
-        name = Files.readSymbolicLink(file);
-        if (Files.isDirectory(name)) {
-          paths.addAll(discover(name));
-          shouldAdd = false;
-        }
-      }
-      if (name != null) {
-        String fileName = name.toString();
-        for (String s : DocumentCollection.this.skippedFileSuffix) {
-          if (fileName.endsWith(s)) {
-            shouldAdd = false;
-            break;
-          }
-        }
-        if (shouldAdd && !DocumentCollection.this.allowedFileSuffix.isEmpty()) {
-          shouldAdd = false;
-          for (String s : DocumentCollection.this.allowedFileSuffix) {
-            if (fileName.endsWith(s)) {
-              shouldAdd = true;
-              break;
-            }
-          }
-        }
-        if (shouldAdd) {
-          for (String s : DocumentCollection.this.skippedFilePrefix) {
-            if (fileName.startsWith(s)) {
-              shouldAdd = false;
-              break;
-            }
-          }
-        }
-        if (shouldAdd && !DocumentCollection.this.allowedFilePrefix.isEmpty()) {
-          shouldAdd = false;
-          for (String s : DocumentCollection.this.allowedFilePrefix) {
-            if (fileName.startsWith(s)) {
-              shouldAdd = true;
-              break;
-            }
-          }
-        }
-      }
-      if (shouldAdd) {
-        paths.add(file);
-      }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-      if (DocumentCollection.this.skippedDir.contains(dir.getFileName().toString())) {
-        LOG.info("Skipping: " + dir);
-        return FileVisitResult.SKIP_SUBTREE;
-      }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult visitFileFailed(Path file, IOException ioe) {
-      LOG.error("Visiting failed for " + file.toString(), ioe);
-      return FileVisitResult.SKIP_SUBTREE;
-    }
   }
 }
 
@@ -178,98 +178,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
 
 //   public static final Set<String> EMPTY_SET = new HashSet<>();
 
-//   public default List<Path> discover(Path p, 
-//                                       Set<String> skippedFilePrefix, 
-//                                       Set<String> allowedFilePrefix,
-//                                       Set<String> skippedFileSuffix, 
-//                                       Set<String> allowedFileSuffix, 
-//                                       Set<String> skippedDir) {
-
-//     final List<Path> paths = new ArrayList<>();
-
-//     FileVisitor<Path> fv = new CollectionFileVisitor<Path>();  
-
-//     try {
-//       Files.walkFileTree(p, fv);
-//     } catch (IOException e) {
-//       LOG.error("IOException during file visiting", e);
-//     }
-
-//     return paths;
 //   }
-
-//   public static class CollectionFileVisitor extends SimpleFileVisitor<Path> {
-
-//     @Override
-//     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-//       Path name = file.getFileName();
-//       boolean shouldAdd = true;
-//       if (Files.isSymbolicLink(file)) {
-//         name = Files.readSymbolicLink(file);
-//         if (Files.isDirectory(name)) {
-//           paths.addAll(discover(name, skippedFilePrefix, allowedFilePrefix, skippedFileSuffix,
-//               allowedFileSuffix, skippedDir));
-//           shouldAdd = false;
-//         }
-//       }
-//       if (name != null) {
-//         String fileName = name.toString();
-//         for (String s : skippedFileSuffix) {
-//           if (fileName.endsWith(s)) {
-//             shouldAdd = false;
-//             break;
-//           }
-//         }
-//         if (shouldAdd && !allowedFileSuffix.isEmpty()) {
-//           shouldAdd = false;
-//           for (String s : allowedFileSuffix) {
-//             if (fileName.endsWith(s)) {
-//               shouldAdd = true;
-//               break;
-//             }
-//           }
-//         }
-//         if (shouldAdd) {
-//           for (String s : skippedFilePrefix) {
-//             if (fileName.startsWith(s)) {
-//               shouldAdd = false;
-//               break;
-//             }
-//           }
-//         }
-//         if (shouldAdd && !allowedFilePrefix.isEmpty()) {
-//           shouldAdd = false;
-//           for (String s : allowedFilePrefix) {
-//             if (fileName.startsWith(s)) {
-//               shouldAdd = true;
-//               break;
-//             }
-//           }
-//         }
-//       }
-//       if (shouldAdd) {
-//         paths.add(file);
-//       }
-//       return FileVisitResult.CONTINUE;
-//     }
-
-//     @Override
-//     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-//       if (skippedDir.contains(dir.getFileName().toString())) {
-//         LOG.info("Skipping: " + dir);
-//         return FileVisitResult.SKIP_SUBTREE;
-//       }
-//       return FileVisitResult.CONTINUE;
-//     }
-
-//     @Override
-//     public FileVisitResult visitFileFailed(Path file, IOException ioe) {
-//       LOG.error("Visiting failed for " + file.toString(), ioe);
-//       return FileVisitResult.SKIP_SUBTREE;
-//     }
-//   }
-
-// }
 
 
 

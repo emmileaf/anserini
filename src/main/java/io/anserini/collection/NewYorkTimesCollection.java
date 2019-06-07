@@ -63,23 +63,26 @@ public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesColle
     this.allowedFileSuffix = new HashSet<>(Arrays.asList(".xml", ".tgz"));
   }
 
-  public class FileSegment extends BaseFileSegment<NewYorkTimesCollection.Document>{
+  @Override
+  public FileSegment<NewYorkTimesCollection.Document> createFileSegment(Path p) throws IOException {
+    return new Segment(p);
+  }
+
+  public class Segment extends FileSegment<NewYorkTimesCollection.Document>{
 
     private final NewYorkTimesCollection.Parser parser = new NewYorkTimesCollection.Parser();
     private TarArchiveInputStream tarInput = null;
     private ArchiveEntry nextEntry = null;
 
-    protected FileSegment(Path path) throws IOException {
-      super.path = path;
-      super.atEOF = false;
-
-      if (path.toString().endsWith(".tgz")) {
-      tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
+    protected Segment(Path path) throws IOException {
+      super(path);
+      if (this.path.toString().endsWith(".tgz")) {
+        tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
       }
     }
 
     @Override
-    protected void readNext(){
+    protected void readNext() throws IOException {
       try {
       if (path.toString().endsWith(".tgz")) {
         getNextEntry();
@@ -92,10 +95,10 @@ public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesColle
         atEOF = true; // if it is a xml file, the segment only has one file, boolean to keep track if it's been read.
       }
       } catch (IOException e1) {
-      if (!path.toString().endsWith(".xml")) {
-        nextRecordStatus = Status.ERROR;
-      }
-      throw e1;
+        if (!path.toString().endsWith(".xml")) {
+          nextRecordStatus = Status.ERROR;
+        }
+        throw e1;
       }
     }
 
