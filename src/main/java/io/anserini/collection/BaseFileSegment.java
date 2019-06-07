@@ -40,17 +40,15 @@ public abstract class BaseFileSegment<T extends SourceDocument> implements Itera
     this.segmentPath = segmentPath;
   }
 
-  public abstract void readNext() throws IOException;
+  // helpers for concrete classes to implement 
+  // depending on desired iterator behaviour
+  protected abstract void readNext();
 
-  public Status getNextRecordStatus() {
+  protected final Status getNextRecordStatus() {
     return nextRecordStatus;
   }
 
-  public void remove() {
-    throw new UnsupportedOperationException();
-  }
-
-  public void close() throws IOException {
+  protected final void close() throws IOException {
     atEOF = true;
     bufferedRecord = null;
     nextRecordStatus = Status.VOID;
@@ -60,9 +58,9 @@ public abstract class BaseFileSegment<T extends SourceDocument> implements Itera
   }
 
   @Override
-  public final Iterator<T> iterator(){
+  public final Iterator<> iterator(){
 
-    Iterator<FileSegment<T>> iter = new Iterator<FileSegment<T>>(){
+    Iterator<T> iter = new Iterator<T>(){
 
       @Override
       public T next() {
@@ -95,7 +93,8 @@ public abstract class BaseFileSegment<T extends SourceDocument> implements Itera
         try {
           readNext();
         } catch (IOException e1) {
-          nextRecordStatus = Status.ERROR;
+          // move this to be handled in readNext()
+          // nextRecordStatus = Status.ERROR;
           return false;
         } catch (NoSuchElementException e2) {
           return false;
@@ -105,6 +104,11 @@ public abstract class BaseFileSegment<T extends SourceDocument> implements Itera
         }
 
         return bufferedRecord != null;
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
       }
     }
 

@@ -56,57 +56,15 @@ import java.util.stream.Collectors;
 
 
 public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesCollection.Document> {
-    private static final Logger LOG = LogManager.getLogger(NewYorkTimesCollection.class);
-
-    public NewYorkTimesCollection(Path collectionPath){
-        super(collectionPath);
-        this.allowedFileSuffix = new HashSet<>(Arrays.asList(".xml", ".tgz"));
-    }
-
-    public class FileSegment extends BaseFileSegment<NewYorkTimesCollection.Document>{
-
-        private final NewYorkTimesCollection.Parser parser = new NewYorkTimesCollection.Parser();
-        private TarArchiveInputStream tarInput = null;
-        private ArchiveEntry nextEntry = null;
-
-        protected FileSegment(Path path) throws IOException {
-          super.path = path;
-          super.atEOF = false;
-
-          if (path.toString().endsWith(".tgz")) {
-            tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
-          }
-        }
-
-    }
-
-}
-
-
-
-public class NewYorkTimesCollection extends DocumentCollection
-    implements SegmentProvider<NewYorkTimesCollection.Document> {
   private static final Logger LOG = LogManager.getLogger(NewYorkTimesCollection.class);
 
-  @Override
-  public List<Path> getFileSegmentPaths() {
-    Set<String> allowedFileSuffix = new HashSet<>(Arrays.asList(".xml", ".tgz"));
-
-    return discover(path, EMPTY_SET, EMPTY_SET, EMPTY_SET, allowedFileSuffix, EMPTY_SET);
+  public NewYorkTimesCollection(Path collectionPath){
+    super(collectionPath);
+    this.allowedFileSuffix = new HashSet<>(Arrays.asList(".xml", ".tgz"));
   }
 
-  @Override
-  public FileSegment createFileSegment(Path p) throws IOException {
-    return new FileSegment(p);
-  }
+  public class FileSegment extends BaseFileSegment<NewYorkTimesCollection.Document>{
 
-  /**
-   * An individual file from the
-   * <a href="https://catalog.ldc.upenn.edu/products/LDC2008T19">New York Times Annotated Corpus</a>.
-   * This class works for both compressed <code>tgz</code> files or uncompressed <code>xml</code>
-   * files.
-   */
-  public class FileSegment extends BaseFileSegment<Document> {
     private final NewYorkTimesCollection.Parser parser = new NewYorkTimesCollection.Parser();
     private TarArchiveInputStream tarInput = null;
     private ArchiveEntry nextEntry = null;
@@ -116,62 +74,40 @@ public class NewYorkTimesCollection extends DocumentCollection
       super.atEOF = false;
 
       if (path.toString().endsWith(".tgz")) {
-        tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
+      tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path.toFile())));
       }
     }
 
     @Override
-    public boolean hasNext() {
-      if (nextRecordStatus == Status.ERROR) {
-        return false;
-      } else if (nextRecordStatus == Status.SKIPPED) {
-        return true;
-      }
-
-      if (bufferedRecord != null) {
-        return true;
-      } else if (atEOF) {
-        return false;
-      }
-
+    protected void readNext(){
       try {
-        if (path.toString().endsWith(".tgz")) {
-          getNextEntry();
-          bufferedReader = new BufferedReader(new InputStreamReader(tarInput, "UTF-8"));
-          File file = new File(nextEntry.getName()); // this is actually not a real file, only to match the method in Parser
-          bufferedRecord = parser.parseFile(bufferedReader, file);
-        } else {
-          bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(path.toFile()), "UTF-8"));
-          bufferedRecord = parser.parseFile(bufferedReader, path.toFile());
-          atEOF = true; // if it is a xml file, the segment only has one file, boolean to keep track if it's been read.
-        }
-      } catch (IOException e1) {
-        if (!path.toString().endsWith(".xml")) {
-          nextRecordStatus = Status.ERROR;
-        }
-        return false;
-      } catch (NoSuchElementException e2) {
-        return false;
-      } catch (RuntimeException e3) {
-        nextRecordStatus = Status.SKIPPED;
-        return true;
+      if (path.toString().endsWith(".tgz")) {
+        getNextEntry();
+        bufferedReader = new BufferedReader(new InputStreamReader(tarInput, "UTF-8"));
+        File file = new File(nextEntry.getName()); // this is actually not a real file, only to match the method in Parser
+        bufferedRecord = parser.parseFile(bufferedReader, file);
+      } else {
+        bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(path.toFile()), "UTF-8"));
+        bufferedRecord = parser.parseFile(bufferedReader, path.toFile());
+        atEOF = true; // if it is a xml file, the segment only has one file, boolean to keep track if it's been read.
       }
-
-      return bufferedRecord != null;
+      } catch (IOException e1) {
+      if (!path.toString().endsWith(".xml")) {
+        nextRecordStatus = Status.ERROR;
+      }
+      throw e1;
+      }
     }
-
-    @Override
-    public void readNext() {}
 
     private void getNextEntry() throws IOException {
       nextEntry = tarInput.getNextEntry();
       if (nextEntry == null) {
-        throw new NoSuchElementException();
+      throw new NoSuchElementException();
       }
       // an ArchiveEntry may be a directory, so we need to read a next one.
       //   this must be done after the null check.
       if (nextEntry.isDirectory()) {
-        getNextEntry();
+      getNextEntry();
       }
     }
   }
