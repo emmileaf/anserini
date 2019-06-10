@@ -190,7 +190,7 @@ public final class IndexCollection {
 
     /**
      * Counter for unindexed documents. These are cases where the {@link SourceDocument} returned
-     * by {@link Segment} is {@code null} or the {@link LuceneDocumentGenerator}
+     * by {@link FileSegment} is {@code null} or the {@link LuceneDocumentGenerator}
      * returned {@code null}. These are not necessarily errors.
      */
     public AtomicLong unindexed = new AtomicLong();
@@ -547,7 +547,7 @@ public final class IndexCollection {
     }
 
     final ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(numThreads);
-    final List segmentPaths = ((SegmentProvider) collection).getFileSegmentPaths();
+    final List segmentPaths = collection.discover(collection.getCollectionPath());
 
     final int segmentCnt = segmentPaths.size();
     LOG.info(segmentCnt + " files found in " + collectionPath.toString());

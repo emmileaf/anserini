@@ -82,7 +82,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     };
   }
 
-  protected final List<Path> discover(Path p) {
+  public final List<Path> discover(Path p) {
     final List<Path> paths = new ArrayList<>();
 
     FileVisitor<Path> fv = new SimpleFileVisitor<Path>() {

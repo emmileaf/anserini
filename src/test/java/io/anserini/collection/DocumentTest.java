@@ -65,7 +65,7 @@ public class DocumentTest extends LuceneTestCase {
       file.delete();
     }
     // Call garbage collector for Windows compatibility
-    System.gc(); 
+    System.gc();
     super.tearDown();
   }
 }

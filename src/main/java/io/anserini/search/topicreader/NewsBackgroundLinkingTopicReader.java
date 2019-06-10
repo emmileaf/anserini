@@ -115,7 +115,7 @@ public class NewsBackgroundLinkingTopicReader extends TopicReader<Integer> {
 
     return map;
   }
-  
+
   /**
    * For TREC2018 News Track Background linking task, the query string is actually a document id.
    * In order to make sense of the query we extract the top terms with higher tf-idf scores from the
@@ -160,7 +160,7 @@ public class NewsBackgroundLinkingTopicReader extends TopicReader<Integer> {
             }
           }
         }
-    
+
         PriorityQueue<Pair<String, Double>> termsTfIdfPQ = new PriorityQueue<>(new ScoreComparator());
         long docCount = reader.numDocs();
         Map<String, Integer> termsMap = new HashMap<>();
@@ -186,25 +186,25 @@ public class NewsBackgroundLinkingTopicReader extends TopicReader<Integer> {
       }
       System.out.println(String.format("Query %d: %s", i, queryStrings.get(i)));
     }
-    
+
     return queryStrings;
   }
-  
-  
+
+
   public static int convertDocidToLuceneDocid(IndexReader reader, String docid) throws IOException {
     IndexSearcher searcher = new IndexSearcher(reader);
-    
+
     Query q = new TermQuery(new Term(LuceneDocumentGenerator.FIELD_ID, docid));
     TopDocs rs = searcher.search(q, 1);
     ScoreDoc[] hits = rs.scoreDocs;
-    
+
     if (hits == null) {
       throw new RuntimeException("Docid not found!");
     }
-    
+
     return hits[0].doc;
   }
-  
+
   private static WashingtonPostCollection.Document.WashingtonPostObject getWapoObj(String record) {
     ObjectMapper mapper = new ObjectMapper();
     WashingtonPostCollection.Document.WashingtonPostObject wapoObj = null;
@@ -221,13 +221,13 @@ public class NewsBackgroundLinkingTopicReader extends TopicReader<Integer> {
     }
     return wapoObj;
   }
-  
+
   private static String getRawContents(String record) {
     WashingtonPostCollection.Document.WashingtonPostObject wapoObj = getWapoObj(record);
-    
+
     StringBuilder contentBuilder = new StringBuilder();
     contentBuilder.append(wapoObj.getTitle()).append("\n\n");
-    
+
     wapoObj.getContents().ifPresent(contents -> {
       for (WashingtonPostCollection.Document.WashingtonPostObject.Content contentObj : contents) {
         if (contentObj == null) continue;
@@ -246,10 +246,10 @@ public class NewsBackgroundLinkingTopicReader extends TopicReader<Integer> {
         });
       }
     });
-    
+
     return contentBuilder.toString();
   }
-  
+
   private static List<String> getParagraphs(String record) {
     List<String> paragraphs = new ArrayList<>();
     WashingtonPostCollection.Document.WashingtonPostObject wapoObj = getWapoObj(record);
