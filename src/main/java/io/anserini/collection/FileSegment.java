@@ -45,11 +45,11 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   // depending on desired iterator behaviour
   protected abstract void readNext() throws IOException;
 
-  protected final Status getNextRecordStatus() {
+  public final Status getNextRecordStatus() {
     return nextRecordStatus;
   }
 
-  protected final void close() throws IOException {
+  public final void close() throws IOException {
     atEOF = true;
     bufferedRecord = null;
     nextRecordStatus = Status.VOID;

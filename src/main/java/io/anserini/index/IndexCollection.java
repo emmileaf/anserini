@@ -64,6 +64,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -235,24 +236,12 @@ public final class IndexCollection {
 
         int cnt = 0;
 
-        // refactoring attempt start
-
-        for (Object seg : () collection){
-          FileSegment segment = (FileSegment) seg;
-          System.out.println(segment.path);
-          if (first) {
-            for (SourceDocument doc : segment){
-              System.out.println(doc.id());
-              System.out.println(doc.content());
-            }
-            first = false;
-          }
-        }
-        // refactoring attempt end
+        // refactoring attempt
 
         @SuppressWarnings("unchecked")
-        BaseFileSegment<SourceDocument> iter =
-            (BaseFileSegment) ((SegmentProvider) collection).createFileSegment(inputFile);
+        FileSegment<SourceDocument> segment =
+            (FileSegment) collection.createFileSegment(inputFile);
+        Iterator<SourceDocument> iter = segment.iterator();
 
         while (iter.hasNext()) {
           SourceDocument d;
@@ -299,11 +288,11 @@ public final class IndexCollection {
           cnt++;
         }
 
-        if (iter.getNextRecordStatus() == BaseFileSegment.Status.ERROR) {
+        if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
           counters.errors.incrementAndGet();
         }
 
-        iter.close();
+        segment.close();
         LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
             inputFile.getFileName().toString() + ": " + cnt + " docs added.");
         counters.indexed.addAndGet(cnt);
@@ -329,7 +318,11 @@ public final class IndexCollection {
       try {
 
         LuceneDocumentGenerator generator = (LuceneDocumentGenerator) generatorClass.getDeclaredConstructor(Args.class, Counters.class).newInstance(args, counters);
-        BaseFileSegment<SourceDocument> iter = (BaseFileSegment) ((SegmentProvider) collection).createFileSegment(input);
+//        BaseFileSegment<SourceDocument> iter = (BaseFileSegment) ((SegmentProvider) collection).createFileSegment(input);
+        // refactoring attempt
+        FileSegment<SourceDocument> segment =
+                (FileSegment) collection.createFileSegment(input);
+        Iterator<SourceDocument> iter = segment.iterator();
 
         int cnt = 0;
         while (iter.hasNext()) {
@@ -393,11 +386,11 @@ public final class IndexCollection {
           flush();
         }
 
-        if (iter.getNextRecordStatus() == BaseFileSegment.Status.ERROR) {
+        if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
           counters.errors.incrementAndGet();
         }
 
-        iter.close();
+        segment.close();
         LOG.info(input.getParent().getFileName().toString() + File.separator + input.getFileName().toString() + ": " + cnt + " docs added.");
         counters.indexed.addAndGet(cnt);
       } catch (Exception e) {

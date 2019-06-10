@@ -48,7 +48,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     return collectionPath;
   }
 
-  protected abstract FileSegment<T> createFileSegment(Path p) throws IOException;
+  public abstract FileSegment<T> createFileSegment(Path p) throws IOException;
 
   @Override
   public final Iterator<FileSegment<T>> iterator(){
