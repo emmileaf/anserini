@@ -21,11 +21,7 @@ import com.google.common.base.Splitter;
 import com.google.common.hash.Hashing;
 import io.anserini.analysis.EnglishStemmingAnalyzer;
 import io.anserini.analysis.TweetAnalyzer;
-import io.anserini.collection.BaseFileSegment;
-import io.anserini.collection.DocumentCollection;
-import io.anserini.collection.Segment;
-import io.anserini.collection.SegmentProvider;
-import io.anserini.collection.SourceDocument;
+import io.anserini.collection.*;
 import io.anserini.index.generator.LuceneDocumentGenerator;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -57,6 +53,7 @@ import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.OptionHandlerFilter;
 import org.kohsuke.args4j.ParserProperties;
 
+import javax.xml.transform.Source;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -237,6 +234,21 @@ public final class IndexCollection {
                 .newInstance(args, counters);
 
         int cnt = 0;
+
+        // refactoring attempt start
+
+        for (Object seg : () collection){
+          FileSegment segment = (FileSegment) seg;
+          System.out.println(segment.path);
+          if (first) {
+            for (SourceDocument doc : segment){
+              System.out.println(doc.id());
+              System.out.println(doc.content());
+            }
+            first = false;
+          }
+        }
+        // refactoring attempt end
 
         @SuppressWarnings("unchecked")
         BaseFileSegment<SourceDocument> iter =
@@ -475,7 +487,7 @@ public final class IndexCollection {
     this.collectionClass = Class.forName("io.anserini.collection." + args.collectionClass);
 
     collection = (DocumentCollection) this.collectionClass.newInstance();
-    collection.setCollectionPath(collectionPath);
+//    collection.setCollectionPath(collectionPath);
 
     if (args.whitelist != null) {
       List<String> lines = FileUtils.readLines(new File(args.whitelist), "utf-8");
