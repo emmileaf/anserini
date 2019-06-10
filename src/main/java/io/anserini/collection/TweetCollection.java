@@ -54,9 +54,9 @@ public class TweetCollection extends DocumentCollection<TweetCollection.Document
 
   private static final Logger LOG = LogManager.getLogger(TweetCollection.class);
 
-  public TweetCollection(Path collectionPath){
-    super(collectionPath);
-  }
+//  public TweetCollection(Path collectionPath){
+//    super(collectionPath);
+//  }
 
   @Override
   public FileSegment<TweetCollection.Document> createFileSegment(Path p) throws IOException {

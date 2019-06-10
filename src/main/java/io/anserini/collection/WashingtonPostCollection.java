@@ -52,8 +52,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 public class WashingtonPostCollection extends DocumentCollection<WashingtonPostCollection.Document> {
   private static final Logger LOG = LogManager.getLogger(WashingtonPostCollection.class);
 
-  public WashingtonPostCollection(Path collectionPath){
-    super(collectionPath);
+  public WashingtonPostCollection(){
     this.allowedFileSuffix = new HashSet<>(Arrays.asList(".txt", ".jl"));
   }
 

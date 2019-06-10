@@ -479,8 +479,8 @@ public final class IndexCollection {
     this.generatorClass = Class.forName("io.anserini.index.generator." + args.generatorClass);
     this.collectionClass = Class.forName("io.anserini.collection." + args.collectionClass);
 
-    collection = (DocumentCollection) this.collectionClass.newInstance(collectionPath);
-//    collection.setCollectionPath(collectionPath);
+    collection = (DocumentCollection) this.collectionClass.newInstance();
+    collection.setCollectionPath(collectionPath);
 
     if (args.whitelist != null) {
       List<String> lines = FileUtils.readLines(new File(args.whitelist), "utf-8");

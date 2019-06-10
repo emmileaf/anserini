@@ -44,8 +44,7 @@ public class TrecCollection extends DocumentCollection<TrecCollection.Document> 
 
   private static final Logger LOG = LogManager.getLogger(TrecCollection.class);
 
-  public TrecCollection(Path collectionPath){
-    super(collectionPath);
+  public TrecCollection(){
     this.skippedFileSuffix = new HashSet<>(Arrays.asList("readme"));
     this.skippedDir = new HashSet<>(Arrays.asList("cr", "dtd", "dtds"));
   }

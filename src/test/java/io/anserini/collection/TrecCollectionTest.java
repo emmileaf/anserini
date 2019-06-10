@@ -13,7 +13,8 @@ public class TrecCollectionTest {
   @Test
   public void test() throws Exception {
     Path collectionPath = Paths.get("C:/cygwin64/home/Emily/usra/collection/disk45");
-    TrecCollection testCollection = new TrecCollection(collectionPath);
+    TrecCollection testCollection = new TrecCollection();
+    testCollection.setCollectionPath(collectionPath);
     Boolean first = true;
     for (FileSegment<TrecCollection.Document> segment : testCollection){
       System.out.println(segment.path);
@@ -30,7 +31,8 @@ public class TrecCollectionTest {
   @Test
   public void test2() throws Exception {
     Path collectionPath = Paths.get("C:/cygwin64/home/Emily/usra/collection/disk45");
-    DocumentCollection testCollection = new TrecCollection(collectionPath);
+    DocumentCollection testCollection = new TrecCollection();
+    testCollection.setCollectionPath(collectionPath);
     Boolean first = true;
     for (Object s : testCollection){
       FileSegment segment = (FileSegment) s; // cast here

@@ -13,7 +13,8 @@ public class NewYorkTimesCollectionTest {
   @Test
   public void test() throws Exception {
     Path collectionPath = Paths.get("C:/cygwin64/home/Emily/usra/collection/nyt_corpus_sample/data");
-    NewYorkTimesCollection testCollection = new NewYorkTimesCollection(collectionPath);
+    NewYorkTimesCollection testCollection = new NewYorkTimesCollection();
+    testCollection.setCollectionPath(collectionPath);
     Boolean first = true;
     for (FileSegment<NewYorkTimesCollection.Document> segment : testCollection){
       System.out.println(segment.path);
@@ -30,7 +31,8 @@ public class NewYorkTimesCollectionTest {
   @Test
   public void test2() throws Exception {
     Path collectionPath = Paths.get("C:/cygwin64/home/Emily/usra/collection/nyt_corpus_sample/data");
-    DocumentCollection testCollection = new NewYorkTimesCollection(collectionPath);
+    DocumentCollection testCollection = new NewYorkTimesCollection();
+    testCollection.setCollectionPath(collectionPath);
     Boolean first = true;
     for (Object s : testCollection){
       FileSegment segment = (FileSegment) s; // cast here
