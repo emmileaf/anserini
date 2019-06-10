@@ -479,7 +479,7 @@ public final class IndexCollection {
     this.generatorClass = Class.forName("io.anserini.index.generator." + args.generatorClass);
     this.collectionClass = Class.forName("io.anserini.collection." + args.collectionClass);
 
-    collection = (DocumentCollection) this.collectionClass.newInstance();
+    collection = (DocumentCollection) this.collectionClass.newInstance(collectionPath);
 //    collection.setCollectionPath(collectionPath);
 
     if (args.whitelist != null) {
