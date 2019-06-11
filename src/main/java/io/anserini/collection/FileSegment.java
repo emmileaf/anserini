@@ -64,7 +64,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
     return nextRecordStatus;
   }
 
-  public final void close() throws IOException {
+  public void close() throws IOException {
     atEOF = true;
     bufferedRecord = null;
     nextRecordStatus = Status.VOID;
