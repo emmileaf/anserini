@@ -237,66 +237,64 @@ public final class IndexCollection {
         int cnt = 0;
 
         // refactoring attempt
+        FileSegment<SourceDocument> segment =
+                (FileSegment) collection.createFileSegment(inputFile);
 
-        for (Object s : collection) {
-          FileSegment segment = (FileSegment) s; // cast here
-          System.out.println(segment.getSegmentPath());
-          for (Object document : segment) {
-            SourceDocument d = (SourceDocument) document; // cast here
+        for (Object document : segment) {
+          SourceDocument d = (SourceDocument) document; // cast here
 
-            // move document error handling here
-            System.out.println(d.id());
-            System.out.println(d.content());
+          // move document error handling here
+          System.out.println(d.id());
+          System.out.println(d.content());
 
-            if (!d.indexable()) {
-              counters.unindexable.incrementAndGet();
-              continue;
-            }
+          if (!d.indexable()) {
+            counters.unindexable.incrementAndGet();
+            continue;
+          }
 
-            // Used for indexing distinct shardCount of a collection
-            if (args.shardCount > 1) {
-              int hash = Hashing.sha1().hashString(d.id(), Charsets.UTF_8).asInt() % args.shardCount;
-              if (hash != args.shardCurrent) {
-                counters.skipped.incrementAndGet();
-                continue;
-              }
-            }
-
-            // Yes, we know what we're doing here.
-            @SuppressWarnings("unchecked")
-            Document doc = generator.createDocument(d);
-            if (doc == null) {
-              counters.unindexed.incrementAndGet();
-              continue;
-            }
-            if (whitelistDocids != null && !whitelistDocids.contains(d.id())) {
+          // Used for indexing distinct shardCount of a collection
+          if (args.shardCount > 1) {
+            int hash = Hashing.sha1().hashString(d.id(), Charsets.UTF_8).asInt() % args.shardCount;
+            if (hash != args.shardCurrent) {
               counters.skipped.incrementAndGet();
               continue;
             }
+          }
 
-            if (!args.dryRun) {
-              if (args.uniqueDocid) {
-                writer.updateDocument(new Term("id", d.id()), doc);
-              } else {
-                writer.addDocument(doc);
-              }
+          // Yes, we know what we're doing here.
+          @SuppressWarnings("unchecked")
+          Document doc = generator.createDocument(d);
+          if (doc == null) {
+            counters.unindexed.incrementAndGet();
+            continue;
+          }
+          if (whitelistDocids != null && !whitelistDocids.contains(d.id())) {
+            counters.skipped.incrementAndGet();
+            continue;
+          }
+
+          if (!args.dryRun) {
+            if (args.uniqueDocid) {
+              writer.updateDocument(new Term("id", d.id()), doc);
+            } else {
+              writer.addDocument(doc);
             }
-            cnt++;
           }
-          counters.skipped.addAndGet(segment.getSkippedCount());
-          LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
-                  inputFile.getFileName().toString() + ": " + segment.getSkippedCount() +
-                  " docs skipped.");
-
-          if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
-            counters.errors.incrementAndGet();
-          }
-
-          segment.close();
-          LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
-                  inputFile.getFileName().toString() + ": " + cnt + " docs added.");
-          counters.indexed.addAndGet(cnt);
+          cnt++;
         }
+        counters.skipped.addAndGet(segment.getSkippedCount());
+        LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
+                inputFile.getFileName().toString() + ": " + segment.getSkippedCount() +
+                " docs skipped.");
+
+        if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
+          counters.errors.incrementAndGet();
+        }
+
+        segment.close();
+        LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
+                inputFile.getFileName().toString() + ": " + cnt + " docs added.");
+        counters.indexed.addAndGet(cnt);
       } catch (Exception e) {
         LOG.error(Thread.currentThread().getName() + ": Unexpected Exception:", e);
       }
