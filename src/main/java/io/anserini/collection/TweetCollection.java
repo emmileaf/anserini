@@ -54,8 +54,8 @@ public class TweetCollection extends DocumentCollection<TweetCollection.Document
 
   private static final Logger LOG = LogManager.getLogger(TweetCollection.class);
 
-//  public TweetCollection(Path collectionPath){
-//    super(collectionPath);
+//  public TweetCollection(){
+//    super();
 //  }
 
   @Override

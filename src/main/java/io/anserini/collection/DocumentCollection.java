@@ -28,7 +28,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
-// // Option 1
 public abstract class DocumentCollection<T extends SourceDocument> implements Iterable<FileSegment<T>> {
 
   private static final Logger LOG = LogManager.getLogger(DocumentCollection.class);
@@ -59,7 +58,6 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
 
     List<Path> paths = discover(this.collectionPath);
     Iterator<Path> pathsIterator  = paths.iterator();
-//    List<FileSegment<T>> segments = paths.map(p -> createFileSegment(p));
 
     return new Iterator<FileSegment<T>>(){
 
@@ -168,21 +166,6 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   }
 }
 
-// // Option 2
-// public interface DocumentCollection<T extends SourceDocument> extends Iterable<FileSegment<T>> {
-  
-//   public void setCollectionPath(Path path);
-
-//   public Path getCollectionPath();
-
-//   public Iterator<FileSegment<T>> iterator();
-
-//   public interface CollectionIterator<T extends SourceDocument> extends Iterator<FileSegment<T>> {
-//   }
-
-//   public static final Set<String> EMPTY_SET = new HashSet<>();
-
-//   }
 
 
 

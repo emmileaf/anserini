@@ -35,7 +35,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   protected boolean atEOF = false;
   protected T bufferedRecord = null;
   protected Status nextRecordStatus = Status.VOID;
-
+  protected int skipped = 0; // exception handling
 
   public FileSegment(Path segmentPath) {
     this.path = segmentPath;
@@ -47,6 +47,14 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
   public final Status getNextRecordStatus() {
     return nextRecordStatus;
+  }
+
+  public final int getSkippedCount() {
+    return skipped;
+  }
+
+  public final Path getSegmentPath() {
+    return path;
   }
 
   public final void close() throws IOException {
@@ -65,10 +73,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
       @Override
       public T next() {
-        if (nextRecordStatus == Status.SKIPPED) {
-          nextRecordStatus = Status.VOID;
-          throw new RuntimeException("Record skipped...");
-        } else if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
+        if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
           nextRecordStatus = Status.VOID;
           throw new NoSuchElementException("EOF has been reached. No more documents to read.");
         }
@@ -81,8 +86,6 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
       public boolean hasNext() {
         if (nextRecordStatus == Status.ERROR) {
           return false;
-        } else if (nextRecordStatus == Status.SKIPPED) {
-          return true;
         }
 
         if (bufferedRecord != null) {
@@ -100,8 +103,9 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
         } catch (NoSuchElementException e2) {
           return false;
         } catch (RuntimeException e3) {
-          nextRecordStatus = Status.SKIPPED;
-          return true;
+          nextRecordStatus = Status.VOID;
+          skipped += 1;
+          return hasNext();
         }
 
         return bufferedRecord != null;
@@ -115,17 +119,3 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   }
 }
 
-// Option 2
-// public interface FileSegment<T extends SourceDocument> extends Iterable<T> {
-
-//     public Iterator<T> iterator();
-
-//     public interface SegmentIterator<T extends SourceDocument> extends Iterator<T> {
-
-//         public enum Status {
-//           SKIPPED, ERROR, VOID
-//         }
-
-//     }
-
-// }
