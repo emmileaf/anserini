@@ -320,20 +320,14 @@ public final class IndexCollection {
 
         LuceneDocumentGenerator generator = (LuceneDocumentGenerator) generatorClass.getDeclaredConstructor(Args.class, Counters.class).newInstance(args, counters);
 //        BaseFileSegment<SourceDocument> iter = (BaseFileSegment) ((SegmentProvider) collection).createFileSegment(input);
-        // refactoring attempt
+        // TODO: finish refactoring updates
         FileSegment<SourceDocument> segment =
                 (FileSegment) collection.createFileSegment(input);
         Iterator<SourceDocument> iter = segment.iterator();
 
         int cnt = 0;
         while (iter.hasNext()) {
-          SourceDocument sourceDocument;
-          try {
-            sourceDocument = iter.next();
-          } catch (RuntimeException e) {
-            counters.skipped.incrementAndGet();
-            continue;
-          }
+          SourceDocument sourceDocument = iter.next();
 
           if (!sourceDocument.indexable()) {
             counters.unindexable.incrementAndGet();
@@ -390,6 +384,11 @@ public final class IndexCollection {
         if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
           counters.errors.incrementAndGet();
         }
+
+        counters.skipped.addAndGet(segment.getSkippedCount());
+        LOG.info(input.getParent().getFileName().toString() + File.separator +
+                input.getFileName().toString() + ": " + segment.getSkippedCount() +
+                " docs skipped.");
 
         segment.close();
         LOG.info(input.getParent().getFileName().toString() + File.separator + input.getFileName().toString() + ": " + cnt + " docs added.");

@@ -39,10 +39,6 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   protected Set<String> allowedFileSuffix = new HashSet<>();
   protected Set<String> skippedDir = new HashSet<>();
 
-//  public DocumentCollection(Path collectionPath) {
-//    this.collectionPath = collectionPath;
-//  }
-
   public final void setCollectionPath(Path collectionPath) {
     this.collectionPath = collectionPath;
   }

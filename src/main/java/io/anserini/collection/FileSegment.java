@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
 
-// Option 1
 public abstract class FileSegment<T extends SourceDocument> implements Iterable<T> {
 
   public enum Status {
@@ -35,7 +34,12 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   protected boolean atEOF = false;
   protected T bufferedRecord = null;
   protected Status nextRecordStatus = Status.VOID;
-  protected int skipped = 0; // exception handling
+
+  // move exception handling for skipped docs to within segment
+  // desired behaviour is to continue iteration and increment counter
+  // getSkippedCount() at the end of iteration returns count of total
+  // docs skipped per segment
+  protected int skipped = 0;
 
   public FileSegment(Path segmentPath) {
     this.path = segmentPath;
@@ -72,7 +76,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
     return new Iterator<T>(){
 
       @Override
-      public T next() {
+      public T next() throws NoSuchElementException {
         if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
           nextRecordStatus = Status.VOID;
           throw new NoSuchElementException("EOF has been reached. No more documents to read.");
