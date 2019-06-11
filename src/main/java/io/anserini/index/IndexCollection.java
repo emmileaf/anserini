@@ -243,10 +243,6 @@ public final class IndexCollection {
         for (Object document : segment) {
           SourceDocument d = (SourceDocument) document; // cast here
 
-          // move document error handling here
-          System.out.println(d.id());
-          System.out.println(d.content());
-
           if (!d.indexable()) {
             counters.unindexable.incrementAndGet();
             continue;
@@ -282,10 +278,14 @@ public final class IndexCollection {
           }
           cnt++;
         }
-        counters.skipped.addAndGet(segment.getSkippedCount());
-        LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
-                inputFile.getFileName().toString() + ": " + segment.getSkippedCount() +
-                " docs skipped.");
+
+        int skipped = segment.getSkippedCount();
+        counters.skipped.addAndGet(skipped);
+        if (skipped > 0) {
+          LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
+                  inputFile.getFileName().toString() + ": " + segment.getSkippedCount() +
+                  " docs skipped.");
+        }
 
         if (segment.getNextRecordStatus() == FileSegment.Status.ERROR) {
           counters.errors.incrementAndGet();
