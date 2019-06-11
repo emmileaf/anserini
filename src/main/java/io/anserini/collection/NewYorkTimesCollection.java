@@ -54,7 +54,12 @@ import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
-
+/**
+ * An instance of the <a href="https://catalog.ldc.upenn.edu/products/LDC2008T19">New York Times
+ * Annotated Corpus</a>.
+ * This class works for both compressed <code>tgz</code> files or uncompressed <code>xml</code>
+ * files.
+ */
 public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesCollection.Document> {
   private static final Logger LOG = LogManager.getLogger(NewYorkTimesCollection.class);
 
@@ -67,6 +72,12 @@ public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesColle
     return new Segment(p);
   }
 
+  /**
+   * An individual file from the
+   * <a href="https://catalog.ldc.upenn.edu/products/LDC2008T19">New York Times Annotated Corpus</a>.
+   * This class works for both compressed <code>tgz</code> files or uncompressed <code>xml</code>
+   * files.
+   */
   public class Segment extends FileSegment<NewYorkTimesCollection.Document>{
 
     private final NewYorkTimesCollection.Parser parser = new NewYorkTimesCollection.Parser();
@@ -83,16 +94,16 @@ public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesColle
     @Override
     protected void readNext() throws IOException {
       try {
-      if (path.toString().endsWith(".tgz")) {
-        getNextEntry();
-        bufferedReader = new BufferedReader(new InputStreamReader(tarInput, "UTF-8"));
-        File file = new File(nextEntry.getName()); // this is actually not a real file, only to match the method in Parser
-        bufferedRecord = parser.parseFile(bufferedReader, file);
-      } else {
-        bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(path.toFile()), "UTF-8"));
-        bufferedRecord = parser.parseFile(bufferedReader, path.toFile());
-        atEOF = true; // if it is a xml file, the segment only has one file, boolean to keep track if it's been read.
-      }
+        if (path.toString().endsWith(".tgz")) {
+          getNextEntry();
+          bufferedReader = new BufferedReader(new InputStreamReader(tarInput, "UTF-8"));
+          File file = new File(nextEntry.getName()); // this is actually not a real file, only to match the method in Parser
+          bufferedRecord = parser.parseFile(bufferedReader, file);
+        } else {
+          bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(path.toFile()), "UTF-8"));
+          bufferedRecord = parser.parseFile(bufferedReader, path.toFile());
+          atEOF = true; // if it is a xml file, the segment only has one file, boolean to keep track if it's been read.
+        }
       } catch (IOException e1) {
         if (!path.toString().endsWith(".xml")) {
           nextRecordStatus = Status.ERROR;

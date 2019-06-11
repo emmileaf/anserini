@@ -31,10 +31,6 @@ public class TrecwebCollection extends DocumentCollection<TrecwebCollection.Docu
 
   private static final Logger LOG = LogManager.getLogger(TrecwebCollection.class);
 
-//  public TrecwebCollection(){
-//    super();
-//  }
-
   @Override
   public FileSegment<Document> createFileSegment(Path p) throws IOException {
     return new Segment<>(p);

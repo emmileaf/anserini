@@ -316,16 +316,19 @@ public final class IndexCollection {
     public void run() {
       try {
 
-        LuceneDocumentGenerator generator = (LuceneDocumentGenerator) generatorClass.getDeclaredConstructor(Args.class, Counters.class).newInstance(args, counters);
-//        BaseFileSegment<SourceDocument> iter = (BaseFileSegment) ((SegmentProvider) collection).createFileSegment(input);
-        // TODO: finish refactoring updates
-        FileSegment<SourceDocument> segment =
-                (FileSegment) collection.createFileSegment(input);
-        Iterator<SourceDocument> iter = segment.iterator();
+        LuceneDocumentGenerator generator =
+                (LuceneDocumentGenerator) generatorClass
+                        .getDeclaredConstructor(Args.class, Counters.class)
+                        .newInstance(args, counters);
 
         int cnt = 0;
-        while (iter.hasNext()) {
-          SourceDocument sourceDocument = iter.next();
+
+        // refactoring changes
+        FileSegment<SourceDocument> segment =
+                (FileSegment) collection.createFileSegment(input);
+
+        for (Object d : segment) {
+          SourceDocument sourceDocument = (SourceDocument) d; // cast here
 
           if (!sourceDocument.indexable()) {
             counters.unindexable.incrementAndGet();
@@ -383,10 +386,13 @@ public final class IndexCollection {
           counters.errors.incrementAndGet();
         }
 
-        counters.skipped.addAndGet(segment.getSkippedCount());
-        LOG.info(input.getParent().getFileName().toString() + File.separator +
-                input.getFileName().toString() + ": " + segment.getSkippedCount() +
-                " docs skipped.");
+        int skipped = segment.getSkippedCount();
+        counters.skipped.addAndGet(skipped);
+        if (skipped > 0) {
+          LOG.info(input.getParent().getFileName().toString() + File.separator +
+                  input.getFileName().toString() + ": " + segment.getSkippedCount() +
+                  " docs skipped.");
+        }
 
         segment.close();
         LOG.info(input.getParent().getFileName().toString() + File.separator + input.getFileName().toString() + ": " + cnt + " docs added.");

@@ -28,6 +28,37 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
+/**
+ * <p>A static collection of documents, comprised of one or more {@link FileSegment}s.
+ * Each {@link FileSegment} is a container for {@link SourceDocument}s.
+ * A collection is assumed to be a directory. In the case where the collection is
+ * a single file (e.g., a Wikipedia dump), place the file into an arbitrary directory.</p>
+ *
+ * <p>The collection is responsible for discovering files with qualified names in the input
+ * directory. The file segment implementation is responsible for reading each file to generate
+ * {@link SourceDocument}s for indexing. </p>
+ *
+ * <p>The steps of adding a new collection class are:</p>
+ *
+ * <ol>
+ *
+ * <li>Create a subclass for {@link DocumentCollection}.</li>
+ *
+ * <li>Implement class {@link FileSegment}, by convention as an inner class of the
+ * {@code DocumentCollection}. See {@link TrecCollection.Segment} as an example.</li>
+ *
+ * <li>Create a subclass for {@link SourceDocument} implementing the corresponding document type.
+ * See {@link TrecCollection.Document} as an example.</li>
+ *
+ * <li>Optionally create a new {@link io.anserini.index.generator.LuceneDocumentGenerator}.
+ * The {@link io.anserini.index.generator.LuceneDocumentGenerator#createDocument}
+ * method takes {@code SourceDocument} as the input and return a Lucene
+ * {@link org.apache.lucene.document.Document} for indexing.</li>
+ *
+ * <li>Remember to add unit tests at {@code src/test/java/io/anserini/collection}!</li>
+ *
+ * </ol>
+ */
 public abstract class DocumentCollection<T extends SourceDocument> implements Iterable<FileSegment<T>> {
 
   private static final Logger LOG = LogManager.getLogger(DocumentCollection.class);
@@ -39,16 +70,37 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   protected Set<String> allowedFileSuffix = new HashSet<>();
   protected Set<String> skippedDir = new HashSet<>();
 
+  /**
+   * Sets the path of the collection.
+   *
+   * @param collectionPath path of the collection
+   */
   public final void setCollectionPath(Path collectionPath) {
     this.collectionPath = collectionPath;
   }
 
+  /**
+   * Returns the path of the collection.
+   *
+   * @return path of the collection
+   */
   public final Path getCollectionPath() {
     return collectionPath;
   }
 
+  /**
+   * Creates a {@code FileSegment} from a path.
+   *
+   * @param p path
+   * @return {@code FileSegment} with the specified path
+   * @throws IOException if file access error encountered
+   */
   public abstract FileSegment<T> createFileSegment(Path p) throws IOException;
 
+  /**
+   * An iterator over {@code FileSegment} for the {@code DocumentCollection} iterable.
+   * A collection is comprised of one or more file segments.
+   */
   @Override
   public final Iterator<FileSegment<T>> iterator(){
 
@@ -80,6 +132,12 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     };
   }
 
+  /**
+   * Used internally by implementations to walk a path and collect file segments.
+   *
+   * @param p                 path to walk
+   * @return result of walking the specified path according to the collection-specific constraints
+   */
   public final List<Path> discover(Path p) {
     final List<Path> paths = new ArrayList<>();
 

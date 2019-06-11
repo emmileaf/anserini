@@ -54,6 +54,11 @@ public class TrecCollection extends DocumentCollection<TrecCollection.Document> 
     return new Segment<>(p);
   }
 
+  /**
+   * A file in a classic TREC <i>ad hoc</i> document collection.
+   *
+   * @param <T> type of the document
+   */
   public static class Segment<T extends Document> extends FileSegment<T>{
 
     protected Segment(Path path) throws IOException {

@@ -22,6 +22,12 @@ import java.nio.file.Path;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
 
+/**
+ * Base implementation for a {@link FileSegment}.
+ * A collection is comprised of one or more file segments. Note that implementations may have independent
+ * existence outside a collection, and in principle multiple collections might share the same
+ * {@code FileSegment} implementation.
+ */
 public abstract class FileSegment<T extends SourceDocument> implements Iterable<T> {
 
   public enum Status {
@@ -35,22 +41,15 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   protected T bufferedRecord = null;
   protected Status nextRecordStatus = Status.VOID;
 
-  // move exception handling for skipped docs to within segment
-  // desired behaviour is to continue iteration and increment counter
-  // getSkippedCount() at the end of iteration returns count of total
-  // docs skipped per segment
+  /**
+   * Move exception handling for skipped docs to within segment
+   * Desired behaviour is to continue iteration and increment counter
+   * Call getSkippedCount() at the end of segment iteration to return count of total docs skipped
+   */
   protected int skipped = 0;
 
   public FileSegment(Path segmentPath) {
     this.path = segmentPath;
-  }
-
-  // helpers for concrete classes to implement 
-  // depending on desired iterator behaviour
-  protected abstract void readNext() throws IOException;
-
-  public final Status getNextRecordStatus() {
-    return nextRecordStatus;
   }
 
   public final int getSkippedCount() {
@@ -59,6 +58,10 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
   public final Path getSegmentPath() {
     return path;
+  }
+
+  public final Status getNextRecordStatus() {
+    return nextRecordStatus;
   }
 
   public final void close() throws IOException {
@@ -70,6 +73,18 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
     }
   }
 
+  /**
+   * For concrete classes to implement depending on desired iterator behaviour
+   *
+   * @throws IOException if reader error encountered
+   */
+
+  protected abstract void readNext() throws IOException;
+
+  /**
+   * An iterator over {@code SourceDocument} for the {@code FileSegment} iterable.
+   * A file segment is comprised of one or more source documents.
+   */
   @Override
   public final Iterator<T> iterator(){
 
@@ -100,13 +115,13 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
         try {
           readNext();
-        } catch (IOException e1) {
-          // move this to be handled in readNext()
-          // nextRecordStatus = Status.ERROR;
+        } catch (IOException | NoSuchElementException e1) {
+          // Exceptions where expected behaviour is to stop iteration
+          // For IOException, nextRecordStatus = Status.ERROR should be handled in readNext() depending on collection
           return false;
-        } catch (NoSuchElementException e2) {
-          return false;
-        } catch (RuntimeException e3) {
+        } catch (RuntimeException e2) {
+          // Exceptions where expected behaviour is to skip and continue iteration
+          // Call getSkippedCount() at the end of segment iteration to return count of total docs skipped
           nextRecordStatus = Status.VOID;
           skipped += 1;
           return hasNext();
