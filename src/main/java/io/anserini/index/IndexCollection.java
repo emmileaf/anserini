@@ -21,7 +21,9 @@ import com.google.common.base.Splitter;
 import com.google.common.hash.Hashing;
 import io.anserini.analysis.EnglishStemmingAnalyzer;
 import io.anserini.analysis.TweetAnalyzer;
-import io.anserini.collection.*;
+import io.anserini.collection.DocumentCollection;
+import io.anserini.collection.FileSegment;
+import io.anserini.collection.SourceDocument;
 import io.anserini.index.generator.LuceneDocumentGenerator;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -230,9 +232,9 @@ public final class IndexCollection {
       try {
         @SuppressWarnings("unchecked")
         LuceneDocumentGenerator generator =
-                (LuceneDocumentGenerator) generatorClass
-                        .getDeclaredConstructor(Args.class, Counters.class)
-                        .newInstance(args, counters);
+              (LuceneDocumentGenerator) generatorClass
+                      .getDeclaredConstructor(Args.class, Counters.class)
+                      .newInstance(args, counters);
 
         int cnt = 0;
 
@@ -241,7 +243,7 @@ public final class IndexCollection {
                 (FileSegment) collection.createFileSegment(inputFile);
 
         for (Object document : segment) {
-          SourceDocument d = (SourceDocument) document; // cast here
+          SourceDocument d = (SourceDocument) document;
 
           if (!d.indexable()) {
             counters.unindexable.incrementAndGet();
@@ -293,7 +295,7 @@ public final class IndexCollection {
 
         segment.close();
         LOG.info(inputFile.getParent().getFileName().toString() + File.separator +
-                inputFile.getFileName().toString() + ": " + cnt + " docs added.");
+              inputFile.getFileName().toString() + ": " + cnt + " docs added.");
         counters.indexed.addAndGet(cnt);
       } catch (Exception e) {
         LOG.error(Thread.currentThread().getName() + ": Unexpected Exception:", e);
@@ -328,7 +330,7 @@ public final class IndexCollection {
                 (FileSegment) collection.createFileSegment(input);
 
         for (Object d : segment) {
-          SourceDocument sourceDocument = (SourceDocument) d; // cast here
+          SourceDocument sourceDocument = (SourceDocument) d;
 
           if (!sourceDocument.indexable()) {
             counters.unindexable.incrementAndGet();

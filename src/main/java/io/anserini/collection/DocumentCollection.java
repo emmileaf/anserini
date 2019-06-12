@@ -219,8 +219,3 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     return paths;
   }
 }
-
-
-
-
-

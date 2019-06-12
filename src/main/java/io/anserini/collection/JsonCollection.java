@@ -26,7 +26,14 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A JSON document collection.
@@ -90,56 +97,16 @@ public class JsonCollection extends DocumentCollection<JsonCollection.Document> 
       }
     }
 
-//    @Override
-//    public boolean hasNext() {
-//      if (nextRecordStatus == Status.ERROR) {
-//        return false;
-//      } else if (nextRecordStatus == Status.SKIPPED) {
-//        return true;
-//      }
-//
-//      if (bufferedRecord != null) {
-//        return true;
-//      } else if (atEOF) {
-//        return false;
-//      }
-//
-//      if (node == null) {
-//        return false;
-//      } else if (node.isObject()) {
-//        bufferedRecord = new JsonCollection.Document(node);
-//        if (iterator.hasNext()) { // if bufferedReader contains JSON line objects, we parse the next JSON into node
-//          node = iterator.next();
-//        } else {
-//          atEOF = true; // there is no more JSON object in the bufferedReader
-//        }
-//      } else if (node.isArray()) {
-//        if (iter != null && iter.hasNext()) {
-//          JsonNode json = iter.next();
-//          bufferedRecord = new JsonCollection.Document(node);
-//        } else {
-//          return false;
-//        }
-//      } else {
-//        LOG.error("Error: invalid JsonNode type");
-//        return false;
-//      }
-//
-//      return bufferedRecord != null;
-//    }
-
     @Override
     public void readNext() throws IOException {
       if (node == null) {
         throw new NoSuchElementException("JsonNode is empty");
       } else if (node.isObject()) {
         bufferedRecord = new JsonCollection.Document(node);
-        if (iterator.hasNext()) {
-          // if bufferedReader contains JSON line objects, we parse the next JSON into node
+        if (iterator.hasNext()) { // if bufferedReader contains JSON line objects, we parse the next JSON into node
           node = iterator.next();
         } else {
-          atEOF = true;
-          // there is no more JSON object in the bufferedReader
+          atEOF = true; // there is no more JSON object in the bufferedReader
         }
       } else if (node.isArray()) {
         if (iter != null && iter.hasNext()) {

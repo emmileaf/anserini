@@ -115,12 +115,12 @@ public class NewYorkTimesCollection extends DocumentCollection<NewYorkTimesColle
     private void getNextEntry() throws IOException {
       nextEntry = tarInput.getNextEntry();
       if (nextEntry == null) {
-      throw new NoSuchElementException();
+        throw new NoSuchElementException();
       }
       // an ArchiveEntry may be a directory, so we need to read a next one.
       //   this must be done after the null check.
       if (nextEntry.isDirectory()) {
-      getNextEntry();
+        getNextEntry();
       }
     }
   }
