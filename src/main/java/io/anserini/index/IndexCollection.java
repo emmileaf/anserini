@@ -236,7 +236,7 @@ public final class IndexCollection {
 
         int cnt = 0;
 
-        // refactoring attempt
+        @SuppressWarnings("unchecked")
         FileSegment<SourceDocument> segment =
                 (FileSegment) collection.createFileSegment(inputFile);
 
@@ -315,7 +315,7 @@ public final class IndexCollection {
     @Override
     public void run() {
       try {
-
+        @SuppressWarnings("unchecked")
         LuceneDocumentGenerator generator =
                 (LuceneDocumentGenerator) generatorClass
                         .getDeclaredConstructor(Args.class, Counters.class)
@@ -323,7 +323,7 @@ public final class IndexCollection {
 
         int cnt = 0;
 
-        // refactoring changes
+        @SuppressWarnings("unchecked")
         FileSegment<SourceDocument> segment =
                 (FileSegment) collection.createFileSegment(input);
 
@@ -344,6 +344,8 @@ public final class IndexCollection {
             }
           }
 
+          // Yes, we know what we're doing here.
+          @SuppressWarnings("unchecked")
           Document document = generator.createDocument(sourceDocument);
           if (document == null) {
             counters.unindexed.incrementAndGet();

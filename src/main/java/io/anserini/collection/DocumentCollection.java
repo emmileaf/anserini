@@ -63,7 +63,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
 
   private static final Logger LOG = LogManager.getLogger(DocumentCollection.class);
 
-  protected Path collectionPath;
+  protected Path path;
   protected Set<String> skippedFilePrefix = new HashSet<>();
   protected Set<String> allowedFilePrefix = new HashSet<>();
   protected Set<String> skippedFileSuffix = new HashSet<>();
@@ -73,10 +73,10 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   /**
    * Sets the path of the collection.
    *
-   * @param collectionPath path of the collection
+   * @param path path of the collection
    */
-  public final void setCollectionPath(Path collectionPath) {
-    this.collectionPath = collectionPath;
+  public final void setCollectionPath(Path path) {
+    this.path = path;
   }
 
   /**
@@ -85,7 +85,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
    * @return path of the collection
    */
   public final Path getCollectionPath() {
-    return collectionPath;
+    return path;
   }
 
   /**
@@ -104,7 +104,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   @Override
   public final Iterator<FileSegment<T>> iterator(){
 
-    List<Path> paths = discover(this.collectionPath);
+    List<Path> paths = discover(this.path);
     Iterator<Path> pathsIterator  = paths.iterator();
 
     return new Iterator<FileSegment<T>>(){
