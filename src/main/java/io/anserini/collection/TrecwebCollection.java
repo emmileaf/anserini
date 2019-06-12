@@ -41,7 +41,7 @@ public class TrecwebCollection extends DocumentCollection<TrecwebCollection.Docu
    *
    * @param <T> type of the document
    */
-  public static class Segment<T extends Document> extends FileSegment<T> {
+  public static class Segment<T extends Document> extends TrecCollection.Segment<T> {
 
     protected Segment(Path path) throws IOException {
       super(path);
