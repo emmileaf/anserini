@@ -108,27 +108,42 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     Iterator<Path> pathsIterator  = paths.iterator();
 
     return new Iterator<FileSegment<T>>(){
+      Path segmentPath;
+      FileSegment<T> segment;
 
-        @Override
-        public boolean hasNext(){
-          return pathsIterator.hasNext();
+      @Override
+      public boolean hasNext(){
+        if (segment != null){
+          return true;
         }
+        if (!pathsIterator.hasNext()){
+          return false;
+        } else {
+          try {
+            Path segmentPath = pathsIterator.next();
+            segment = createFileSegment(segmentPath);
+          } catch (IOException e){
+            return false;
+          }
+        }
+        return true;
+      }
 
-        @Override
-        public FileSegment<T> next(){
-            try {
-              Path segmentPath = pathsIterator.next();
-              return createFileSegment(segmentPath);
-            } catch (IOException e){
-              // log file exception and skip?
-              return next();
-            }
+      @Override
+      public FileSegment<T> next()throws NoSuchElementException {
+        if (!hasNext()){
+          throw new NoSuchElementException("No more file segments to read.");
+        } else {
+          FileSegment<T> seg = segment;
+          segment = null;
+          return seg;
         }
+      }
 
-        @Override
-        public void remove(){
-          throw new UnsupportedOperationException();
-        }
+      @Override
+      public void remove(){
+        throw new UnsupportedOperationException();
+      }
     };
   }
 
