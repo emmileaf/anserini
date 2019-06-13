@@ -7,7 +7,7 @@
 import sys
 sys.path += ['src/main/python/io']
 
-from anserini.search import pysearcher
+from anserini.search import pysearch
 from anserini.collection import pycollection
 from anserini.index import pygenerator
 ...
