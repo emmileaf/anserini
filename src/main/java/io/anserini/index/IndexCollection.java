@@ -232,9 +232,9 @@ public final class IndexCollection {
       try {
         @SuppressWarnings("unchecked")
         LuceneDocumentGenerator generator =
-              (LuceneDocumentGenerator) generatorClass
-                      .getDeclaredConstructor(Args.class, Counters.class)
-                      .newInstance(args, counters);
+            (LuceneDocumentGenerator) generatorClass
+                    .getDeclaredConstructor(Args.class, Counters.class)
+                    .newInstance(args, counters);
 
         int cnt = 0;
 
