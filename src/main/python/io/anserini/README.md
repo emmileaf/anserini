@@ -16,7 +16,7 @@ from anserini.index import pygenerator
 ### To use SimpleSearcher over an index
 
 ```
-searcher = pysearcher.SimpleSearcher('lucene-index.robust04.pos+docvectors+rawdocs')
+searcher = pysearch.SimpleSearcher('lucene-index.robust04.pos+docvectors+rawdocs')
 hits = searcher.search('hubble space telescope')
 
 # the docid of the 1st hit
