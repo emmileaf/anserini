@@ -9,8 +9,16 @@ class SimpleSearcher:
         self.index = index_dir
         self.searcher = JSearcher(JString(index_dir))
     
-    def search(self, query):
-        return self.searcher.search(JString(query))
+    def search(self, *args):
+        if (len(args) == 1 and 
+            isinstance(args[0], str)):
+            return self.searcher.search(JString(args[0]))
+        elif (len(args) == 2 and isinstance(args[0], str)):
+            return self.searcher.search(JString(args[0]), args[1])
+        elif (len(args) == 3 and isinstance(args[0], str)):
+            return self.searcher.search(JString(args[0]), args[1], args[2])
+        else:
+            raise ValueError("Unsupported arguments for search.")
     
             
 
