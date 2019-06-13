@@ -1,4 +1,4 @@
-from .pyjnius_utils import JIndexHelpers, JGenerators
+from anserini.pyclass import JIndexHelpers, JGenerators
 
 import logging
 logger = logging.getLogger(__name__)

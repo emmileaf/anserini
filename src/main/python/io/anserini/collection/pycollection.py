@@ -1,5 +1,5 @@
-from .pyjnius_utils import JCollections, JPaths, cast
-from .threading_utils import Counters
+from anserini.pyclass import JCollections, JPaths, cast
+from .multithreading import Counters
 import re
 
 import logging
