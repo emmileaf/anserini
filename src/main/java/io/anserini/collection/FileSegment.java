@@ -78,6 +78,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
    * For concrete classes to implement depending on desired iterator behaviour
    *
    * @throws IOException if reader error encountered
+   * @throws NoSuchElementException if EOF encountered
    */
 
   protected abstract void readNext() throws IOException, NoSuchElementException;
