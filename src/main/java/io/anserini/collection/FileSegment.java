@@ -30,16 +30,11 @@ import java.util.Iterator;
  */
 public abstract class FileSegment<T extends SourceDocument> implements Iterable<T> {
 
-  public enum Status {
-    SKIPPED, ERROR, VOID
-  }
-
   protected Path path;
   protected final int BUFFER_SIZE = 1 << 16; // 64K
   protected BufferedReader bufferedReader;
   protected boolean atEOF = false;
   protected T bufferedRecord = null;
-  protected Status nextRecordStatus = Status.VOID;
 
   /**
    * Move exception handling for skipped docs to within segment
@@ -47,6 +42,13 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
    * Call getSkippedCount() at the end of segment iteration to return count of total docs skipped
    */
   protected int skipped = 0;
+
+  /**
+   * Move exception handling for file read errors to within segment
+   * Desired behaviour is to stop iteration and update error = true
+   * Call getErrorStatus() at the end of segment iteration to return error status of iterator
+   */
+  protected boolean error = false;
 
   public FileSegment(Path segmentPath) {
     this.path = segmentPath;
@@ -56,18 +58,17 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
     return skipped;
   }
 
-  public final Path getSegmentPath() {
-    return path;
+  public final boolean getErrorStatus() {
+    return error;
   }
 
-  public final Status getNextRecordStatus() {
-    return nextRecordStatus;
+  public final Path getSegmentPath() {
+    return path;
   }
 
   public void close() throws IOException {
     atEOF = true;
     bufferedRecord = null;
-    nextRecordStatus = Status.VOID;
     if (bufferedReader != null) {
       bufferedReader.close();
     }
@@ -79,7 +80,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
    * @throws IOException if reader error encountered
    */
 
-  protected abstract void readNext() throws IOException;
+  protected abstract void readNext() throws IOException, NoSuchElementException;
 
   /**
    * An iterator over {@code SourceDocument} for the {@code FileSegment} iterable.
@@ -92,8 +93,11 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
       @Override
       public T next() throws NoSuchElementException {
-        if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
-          nextRecordStatus = Status.VOID;
+//        if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
+        if (error) {
+          throw new NoSuchElementException("Encountered file read error, stopping iteration.");
+        }
+        if (bufferedRecord == null && !hasNext()) {
           throw new NoSuchElementException("EOF has been reached. No more documents to read.");
         }
         T ret = bufferedRecord;
@@ -103,9 +107,6 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
       @Override
       public boolean hasNext() {
-        if (nextRecordStatus == Status.ERROR) {
-          return false;
-        }
 
         if (bufferedRecord != null) {
           return true;
@@ -115,14 +116,17 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
         try {
           readNext();
-        } catch (IOException | NoSuchElementException e1) {
-          // Exceptions where expected behaviour is to stop iteration
-          // For IOException, nextRecordStatus = Status.ERROR should be handled in readNext() depending on collection
+        } catch (IOException e1) {
+          // Error, stop iteration
+          // Call getErrorStatus() at the end of segment iteration and update error counter
+          error = true;
           return false;
-        } catch (RuntimeException e2) {
-          // Exceptions where expected behaviour is to skip and continue iteration
-          // Call getSkippedCount() at the end of segment iteration to return count of total docs skipped
-          nextRecordStatus = Status.VOID;
+        } catch (NoSuchElementException e2){
+          // EOF, stop iteration
+          return false;
+        } catch (RuntimeException e3) {
+          // Skip and continue iteration
+          // Call getSkippedCount() at the end of segment iteration and update skipped counter
           skipped += 1;
           return hasNext();
         }

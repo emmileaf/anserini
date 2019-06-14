@@ -49,12 +49,7 @@ public class TrecwebCollection extends DocumentCollection<TrecwebCollection.Docu
 
     @Override
     public void readNext() throws IOException {
-      try {
         readNextRecord(bufferedReader);
-      } catch (IOException e1) {
-        nextRecordStatus = Status.ERROR;
-        throw e1;
-      }
     }
 
     private void readNextRecord(BufferedReader reader) throws IOException {

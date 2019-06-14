@@ -78,16 +78,11 @@ public class TweetCollection extends DocumentCollection<TweetCollection.Document
 
     @Override
     public void readNext() throws IOException {
-      try {
-        String nextRecord = bufferedReader.readLine();
-        if (nextRecord == null) {
-          throw new NoSuchElementException();
-        }
-        parseJson(nextRecord);
-      } catch (IOException e1) {
-        nextRecordStatus = Status.ERROR;
-        throw e1;
+      String nextRecord = bufferedReader.readLine();
+      if (nextRecord == null) {
+        throw new NoSuchElementException();
       }
+      parseJson(nextRecord);
     }
 
     private void parseJson(String json) {
