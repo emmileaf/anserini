@@ -78,8 +78,9 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
   /**
    * For concrete classes to implement depending on desired iterator behaviour
    *
-   * @throws IOException if reader error encountered
-   * @throws NoSuchElementException if EOF encountered
+   * @throws IOException if reader error encountered and iterator should stop
+   * @throws ParseException if parse error encountered and iterator should continue
+   * @throws NoSuchElementException if EOF encountered and iterator should stop
    */
 
   protected abstract void readNext() throws IOException, ParseException, NoSuchElementException;
@@ -95,7 +96,6 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
       @Override
       public T next() throws NoSuchElementException {
-//        if (nextRecordStatus == Status.ERROR || bufferedRecord == null && !hasNext()) {
         if (error) {
           throw new NoSuchElementException("Encountered file read error, stopping iteration.");
         }
