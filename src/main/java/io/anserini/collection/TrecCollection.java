@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
+import java.text.ParseException;
 
 /**
  * A classic TREC <i>ad hoc</i> document collection.
@@ -80,7 +81,7 @@ public class TrecCollection extends DocumentCollection<TrecCollection.Document> 
     }
 
     @Override
-    public void readNext() throws IOException {
+    public void readNext() throws IOException, ParseException {
         readNextRecord(bufferedReader);
     }
 

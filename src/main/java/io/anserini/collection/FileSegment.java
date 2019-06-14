@@ -19,6 +19,7 @@ package io.anserini.collection;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.text.ParseException;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
 
@@ -81,7 +82,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
    * @throws NoSuchElementException if EOF encountered
    */
 
-  protected abstract void readNext() throws IOException, NoSuchElementException;
+  protected abstract void readNext() throws IOException, ParseException, NoSuchElementException;
 
   /**
    * An iterator over {@code SourceDocument} for the {@code FileSegment} iterable.
@@ -125,7 +126,7 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
         } catch (NoSuchElementException e2){
           // EOF, stop iteration
           return false;
-        } catch (RuntimeException e3) {
+        } catch (ParseException e3) {
           // Skip and continue iteration
           // Call getSkippedCount() at the end of segment iteration and update skipped counter
           skipped += 1;
