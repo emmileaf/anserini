@@ -1,5 +1,5 @@
 from anserini.pyclass import JCollections, JPaths, cast
-from .multithreading import Counters
+from anserini.multithreading import Counters
 import re
 
 import logging
