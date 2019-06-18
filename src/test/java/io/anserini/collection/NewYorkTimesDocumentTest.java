@@ -42,10 +42,6 @@ public class NewYorkTimesDocumentTest extends DocumentTest {
             "<docdata>\n" +
             "<doc-id id-string=\"12345678\"/>\n" +
             "<doc.copyright year=\"2007\" holder=\"The New York Times\"/>\n" +
-            "<identified-content>\n" +
-            "<classifier type=\"taxonomic_classifier\" class=\"online_producer\">Top/News</classifier>\n" +
-            "<classifier type=\"general_descriptor\" class=\"online_producer\">Music</classifier>\n" +
-            "</identified-content>\n" +
             "</docdata>\n" +
             "</head>\n" +
             "<body>\n" +
