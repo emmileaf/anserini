@@ -103,7 +103,6 @@ public class TweetDocumentTest extends DocumentTest {
       assertEquals(1, segment.getSkippedCount());
       assertEquals(false, segment.getErrorStatus());
     } catch (IOException e) {
-      System.out.println(e.getMessage());
       throw new RuntimeException(e);
     }
   }

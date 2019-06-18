@@ -47,9 +47,6 @@ public class NewYorkTimesDocumentTest extends DocumentTest {
             "<classifier type=\"general_descriptor\" class=\"online_producer\">Music</classifier>\n" +
             "</identified-content>\n" +
             "</docdata>\n" +
-            "<pubdata name=\"The New York Times\" unit-of-measure=\"word\" item-length=\"167\" " +
-            "ex-ref=\"http://query.nytimes.com/gst/fullpage.html?res=940DE2DA153FF932A35751C0A9619C8B63\" " +
-            "date.publication=\"20070201T000000\"/>\n" +
             "</head>\n" +
             "<body>\n" +
             "<body.head>\n" +
