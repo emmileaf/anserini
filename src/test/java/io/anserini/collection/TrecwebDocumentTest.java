@@ -95,6 +95,7 @@ public class TrecwebDocumentTest extends DocumentTest {
     }
     assertEquals(2, cnt.get());
     assertEquals(1, segment.getSkippedCount());
+    assertEquals(false, segment.getErrorStatus());
   }
 
   // Tests if the iterator is behaving properly. If it is, we shouldn't have any issues running into
@@ -114,6 +115,7 @@ public class TrecwebDocumentTest extends DocumentTest {
       });
       assertEquals(2, cnt.get());
       assertEquals(1, segment.getSkippedCount());
+      assertEquals(false, segment.getErrorStatus());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
