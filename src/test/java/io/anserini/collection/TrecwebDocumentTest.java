@@ -16,7 +16,6 @@
 
 package io.anserini.collection;
 
-import org.apache.xerces.util.SynchronizedSymbolTable;
 import org.junit.Before;
 import org.junit.Test;
 

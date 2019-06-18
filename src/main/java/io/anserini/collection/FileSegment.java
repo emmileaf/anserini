@@ -16,9 +16,6 @@
 
 package io.anserini.collection;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -33,8 +30,6 @@ import java.util.Iterator;
  * {@code FileSegment} implementation.
  */
 public abstract class FileSegment<T extends SourceDocument> implements Iterable<T> {
-
-  private static final Logger LOG = LogManager.getLogger(FileSegment.class);
 
   protected Path path;
   protected final int BUFFER_SIZE = 1 << 16; // 64K
@@ -126,8 +121,6 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
         } catch (IOException e1) {
           // Error, stop iteration
           // Call getErrorStatus() at the end of segment iteration and update error counter
-//          LOG.error("Error: IOException from readNext(), stopping iteration...");
-//          LOG.error(e1.getMessage());
           error = true;
           return false;
         } catch (NoSuchElementException e2){
@@ -136,8 +129,6 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
         } catch (ParseException e3) {
           // Skip and continue iteration
           // Call getSkippedCount() at the end of segment iteration and update skipped counter
-//          LOG.warn("Warning: ParseException from readNext(), skipping and continuing...");
-//          LOG.warn(e3.getMessage());
           skipped += 1;
           return hasNext();
         }
