@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class NYTimesDocumentTest extends DocumentTest {
+public class NewYorkTimesDocumentTest extends DocumentTest {
   @Before
   public void setUp() throws Exception {
     super.setUp();
