@@ -103,17 +103,14 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   public abstract FileSegment<T> createFileSegment(Path p) throws IOException;
 
   /**
-   * Helpers for defining the FileSegment iterator
-   */
-  private List<Path> segmentPaths = path == null ? new ArrayList<Path>() : discover(path);
-  private Iterator<Path> pathsIterator  = segmentPaths.iterator();
-
-  /**
    * An iterator over {@code FileSegment} for the {@code DocumentCollection} iterable.
    * A collection is comprised of one or more file segments.
    */
   @Override
   public final Iterator<FileSegment<T>> iterator(){
+
+    List<Path> paths = discover(this.path);
+    Iterator<Path> pathsIterator  = paths.iterator();
 
     return new Iterator<FileSegment<T>>(){
       Path segmentPath;
@@ -128,7 +125,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
           return false;
         } else {
           try {
-            segmentPath = pathsIterator.next();
+            Path segmentPath = pathsIterator.next();
             segment = createFileSegment(segmentPath);
           } catch (IOException e){
             return false;
