@@ -43,7 +43,7 @@ def IterSegment(fs, generator, output_path, tokenizer, tokenmin, raw):
     for (i, d) in enumerate(fs):
         
         # Skip unindexable documents
-        if not d.indexable():
+        if not d.indexable:
             logger.error(fs.segment_name + 
                      ": Document not indexable, skipping...")
             fs.collection.counters.unindexable.increment()
