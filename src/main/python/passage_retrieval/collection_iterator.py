@@ -152,7 +152,7 @@ def IterCollection(input_path, collection_class,
         os.mkdir(output_path)
     
     with ThreadPoolExecutor(max_workers=threads) as executor:    
-        for (seg_num, fs) in enumerate(collection.segments):
+        for (seg_num, fs) in enumerate(collection):
             executor.submit(IterSegment, fs, generator, output_path, 
                             tokenizer, tokenmin, raw)
     
