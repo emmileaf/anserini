@@ -21,11 +21,10 @@ Module for hiding Python-Java calls via Pyjnius
 ### Pyjnius setup
 
 from .setup import configure_classpath, os
-print(os.path.abspath(os.path.join(os.path.realpath(__file__), 
-                                                 "../../../../..")))
-configure_classpath(os.path.abspath(os.path.join(os.path.realpath(__file__), 
-                                                 "../../../../..")))
-
+# find path back to root of anserini directory
+configure_classpath(os.path.abspath(
+        os.path.join(os.path.realpath(__file__), "../../../../..")))
+    
 from jnius import autoclass, cast
 from enum import Enum
 
