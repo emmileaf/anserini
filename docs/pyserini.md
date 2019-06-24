@@ -93,13 +93,13 @@ Alternatively, for parts of Anserini that have not yet been integrated
 into the Pyserini interface, you can interact with Anserini's Java classes 
 directly via [pyjnius](https://github.com/kivy/pyjnius). 
 
-First, call Pyserini's setup helper for setting up classpath for the JVM
+First, call Pyserini's setup helper for setting up classpath for the JVM:
 ```
 from pyserini.setup import configure_classpath
 configure_classpath(anserini_root)
 ```
 
-Now `autoclass` can be used to provide direct access to Java classes
+Now `autoclass` can be used to provide direct access to Java classes:
 
 ```
 from jnius import autoclass
