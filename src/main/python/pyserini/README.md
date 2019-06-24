@@ -4,8 +4,10 @@
 ### Example usage 
 
 ```
-import sys
-sys.path += ['src/main/python']
+anserini_root = '.' # can replace with path to anserini root directory
+
+import os, sys
+sys.path += [os.path.join(anserini_root, 'src/main/python')]
 
 from pyserini.search import pysearch
 from pyserini.collection import pycollection
