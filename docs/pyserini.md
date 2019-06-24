@@ -92,7 +92,6 @@ for (i, fs) in enumerate(collection):
 Alternatively, for parts of Anserini that have not yet been integrated
 into the Pyserini interface, you can interact with Anserini's Java classes 
 directly via [pyjnius](https://github.com/kivy/pyjnius). 
-Contributions for extending the interface are also welcome!
 
 First, call Pyserini's setup helper for setting up classpath for the JVM
 ```
@@ -106,15 +105,13 @@ Now `autoclass` can be used to provide direct access to Java classes
 from jnius import autoclass
 
 JString = autoclass('java.lang.String')
-JSearcher = autoclass('io.anserini.search.SimpleSearcher')
+JIndexUtils = autoclass('io.anserini.index.IndexUtils')
 
-searcher = JSearcher(JString('lucene-index.robust04.pos+docvectors+rawdocs'))
-hits = searcher.search(JString('hubble space telescope'))
+index_utils = JIndexUtils(JString('lucene-index.robust04.pos+docvectors+rawdocs'))
 
-# the docid of the 1st hit
-hits[0].docid
+# fetch raw document by id
+rawdoc = index_utils.getRawDocument(JString('FT934-5418'))
 
-...
 ```
 
 
