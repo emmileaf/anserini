@@ -29,7 +29,7 @@ class Generator:
         self.counters = JIndexHelpers.JCounters()
         self.args = JIndexHelpers.JArgs()
         self.generator_class = generator_class
-        self.generator = self._get_generator()
+        self.object = self._get_generator()
     
     def _get_generator(self):
         try:
