@@ -13,6 +13,13 @@ using `pyjnius`, as described
 
 ### Setup for using Pyserini
 
+Requirements:
+
+```
+pip install Cython
+pip install pyjnius
+```
+
 In order to import `pyserini` and its submodules, include the following code snippet:
 ```
 anserini_root = '.' 
@@ -47,6 +54,17 @@ hits[0].score
 # the full document of the 1st hit
 hits[0].content
 ```
+
+In each python wrapper class, the `object` field contains the 
+underlying java reflection class object. 
+We can also directly call methods on the underlying object,
+with appropriate type conversions applied to the arguments. For example:
+
+```
+searcher.object.setBM25Similarity(float(0.9), float(0.4))
+searcher.object.setRM3Reranker(10, 10, 0.5)
+hits = searcher.search(JString('hubble space telescope'))
+``` 
 
 
 ### Example usage of Collection API
