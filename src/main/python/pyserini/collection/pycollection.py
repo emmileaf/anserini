@@ -45,7 +45,7 @@ class FileSegment:
             self.object = cast("io.anserini.collection.FileSegment", 
                                 segment)
             
-        self.segment_iterator = self.segment.iterator()
+        self.segment_iterator = self.object.iterator()
         self.segment_path = segment_path
         self.segment_name = re.sub(r"\\|\/", "-", 
                                    collection.collection_path.relativize(
