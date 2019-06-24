@@ -56,14 +56,14 @@ hits[0].content
 ```
 
 In each python wrapper class, the `object` field contains the 
-underlying java reflection class object. 
+underlying java reflection class instance. 
 We can also directly call methods on the underlying object,
 with appropriate type conversions applied to the arguments. For example:
 
 ```
 searcher.object.setBM25Similarity(float(0.9), float(0.4))
 searcher.object.setRM3Reranker(10, 10, 0.5)
-hits = searcher.search(JString('hubble space telescope'))
+hits = searcher.object.search(JString('hubble space telescope'))
 ``` 
 
 
