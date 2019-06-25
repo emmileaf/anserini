@@ -37,3 +37,6 @@ class Generator:
         except:
             raise ValueError(self.generator_class)
             
+    def create_document(self, document):
+        return self.object.createDocument(document.object)
+            
