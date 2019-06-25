@@ -32,7 +32,7 @@ from pyserini.search import pysearch
 
 searcher = pysearch.SimpleSearcher('lucene-index.robust04.pos+docvectors+rawdocs')
 
-# You can also configure search options, such as using BM25+RM3
+# To additionally configure search options, such as using BM25+RM3:
 searcher.set_bm25_similarity(0.9, 0.4)
 searcher.set_rm3_reranker(10, 10, 0.5)
 
