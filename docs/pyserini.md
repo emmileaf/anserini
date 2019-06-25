@@ -1,7 +1,7 @@
 # Pyserini: Anserini Integration with Python
 
 Anserini was designed with Python integration in mind, for connecting with popular deep learning toolkits such as PyTorch. 
-[Pyserini](https://github.com/castorini/anserini/src/main/python/pyserini) provides a Python interface via [pyjnius]https://github.com/kivy/pyjnius) for accessing various classes within Anserini.
+[Pyserini](https://github.com/castorini/anserini/src/main/python/pyserini) provides a Python interface via [pyjnius](https://github.com/kivy/pyjnius) for accessing various classes within Anserini.
 
 This is an ongoing effort, and contributions for extending the interface are welcome!
 You can also interact with Anserini's Java classes directly using `pyjnius`, as described [here](#Direct-Interaction-via-Pyjnius).
@@ -32,8 +32,10 @@ from pyserini.search import pysearch
 
 searcher = pysearch.SimpleSearcher('lucene-index.robust04.pos+docvectors+rawdocs')
 
+# You can also configure search options, such as using BM25+RM3
 searcher.set_bm25_similarity(0.9, 0.4)
 searcher.set_rm3_reranker(10, 10, 0.5)
+
 hits = searcher.search('hubble space telescope')
 
 # the docid of the 1st hit
