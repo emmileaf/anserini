@@ -46,6 +46,11 @@ class SimpleSearcher:
             Number of hits to return
         t : int
             Query tweet time for searching tweets  
+            
+        Returns
+        -------
+        results : list of io.anserini.search.SimpleSearcher$Result
+            List of document hits returned from search
         """
         return self.object.search(JString(q), k, t)
     
@@ -61,6 +66,11 @@ class SimpleSearcher:
             Weight boost for additional field
         k : int
             Number of hits to return
+            
+        Returns
+        -------
+        results : list of io.anserini.search.SimpleSearcher$Result
+            List of document hits returned from search
         """
         return self.object.searchFields(JString(q), JString(f), float(boost), k)
     
@@ -165,6 +175,12 @@ class SimpleSearcher:
         ----------
         ldocid : int
             Internal Lucene docid of a document
+        
+        Returns
+        -------
+        result : str
+            Raw content of the given document
+        
         """
         return self.object.doc(ldocid)
         
