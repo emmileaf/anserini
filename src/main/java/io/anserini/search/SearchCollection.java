@@ -16,6 +16,7 @@
 
 package io.anserini.search;
 
+import com.google.common.base.Splitter;
 import io.anserini.analysis.EnglishStemmingAnalyzer;
 import io.anserini.analysis.TweetAnalyzer;
 import io.anserini.index.generator.TweetGenerator;
@@ -34,7 +35,14 @@ import io.anserini.search.similarity.TaggedSimilarity;
 import io.anserini.search.topicreader.NewsBackgroundLinkingTopicReader;
 import io.anserini.search.topicreader.TopicReader;
 import io.anserini.util.AnalyzerUtils;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.apache.commons.pool2.BasePooledObjectFactory;
+import org.apache.commons.pool2.ObjectPool;
+import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
@@ -70,6 +78,13 @@ import org.apache.lucene.search.similarities.NormalizationH2;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.util.BytesRef;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.OptionHandlerFilter;
@@ -89,6 +104,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
@@ -117,6 +133,7 @@ public final class SearchCollection implements Closeable {
           new SortField(TweetGenerator.StatusField.ID_LONG.name, SortField.Type.LONG, true));
 
   private static final Logger LOG = LogManager.getLogger(SearchCollection.class);
+  private static final int TIMEOUT = 600 * 1000;
 
   private final SearchArgs args;
   private final IndexReader reader;
@@ -128,6 +145,7 @@ public final class SearchCollection implements Closeable {
     SequentialDependenceModel
   }
   private final QueryConstructor qc;
+  private ObjectPool<SolrClient> solrPool;
   
   private final class SearcherThread<K> extends Thread {
     final private IndexReader reader;
@@ -168,7 +186,7 @@ public final class SearchCollection implements Closeable {
             docs = searchTweets(this.searcher, qid, queryString, Long.parseLong(entry.getValue().get("time")), cascade);
           } else if (args.searchnewsbackground) {
             docs = searchBackgroundLinking(this.searcher, qid, queryString, cascade);
-          } else{
+          } else {
             docs = search(this.searcher, qid, queryString, cascade);
           }
     
@@ -197,19 +215,123 @@ public final class SearchCollection implements Closeable {
     }
   }
 
-  public SearchCollection(SearchArgs args) throws IOException {
-    this.args = args;
-    Path indexPath = Paths.get(args.index);
+  private final class SolrSearcherThread<K> extends Thread {
 
-    if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
-      throw new IllegalArgumentException(args.index + " does not exist or is not a directory.");
+    final private SortedMap<K, Map<String, String>> topics;
+    final private TaggedSimilarity taggedSimilarity;
+    final private String cascadeTag;
+    final private RerankerCascade cascade;
+    final private String outputPath;
+    final private String runTag;
+
+    private SolrSearcherThread(SortedMap<K, Map<String, String>> topics, TaggedSimilarity taggedSimilarity,
+                           String cascadeTag, RerankerCascade cascade, String outputPath, String runTag) throws IOException {
+
+      this.topics = topics;
+      this.taggedSimilarity = taggedSimilarity;
+      this.cascadeTag = cascadeTag;
+      this.cascade = cascade;
+      this.runTag = runTag;
+      this.outputPath = outputPath;
+//      this.searcher = new IndexSearcher(this.reader);
+//      this.searcher.setSimilarity(this.taggedSimilarity.similarity);
+      setName(outputPath);
     }
 
-    LOG.info("Reading index at " + indexPath);
-    if (args.inmem) {
-      this.reader = DirectoryReader.open(MMapDirectory.open(indexPath));
+    @Override
+    public void run() {
+      try {
+        LOG.info("[Start] Ranking with similarity: " + taggedSimilarity.similarity.toString());
+        final long start = System.nanoTime();
+        if (!cascadeTag.isEmpty()) LOG.info("ReRanking with: " + cascadeTag);
+        PrintWriter out = new PrintWriter(Files.newBufferedWriter(Paths.get(outputPath), StandardCharsets.US_ASCII));
+
+        // Solr client
+        SolrClient client = solrPool.borrowObject();
+
+        for (Map.Entry<K, Map<String, String>> entry : topics.entrySet()) {
+          K qid = entry.getKey();
+          String queryString = entry.getValue().get(args.topicfield);
+          SolrDocumentList docs;
+
+          if (args.searchtweets || args.searchnewsbackground) {
+            throw new NotImplementedException("Not implemented for searchSolr");
+          } else {
+            docs = searchSolr(client, qid, queryString, cascade);
+          }
+
+          /**
+           * the first column is the topic number.
+           * the second column is currently unused and should always be "Q0".
+           * the third column is the official document identifier of the retrieved document.
+           * the fourth column is the rank the document is retrieved.
+           * the fifth column shows the score (integer or floating point) that generated the ranking.
+           * the sixth column is called the "run tag" and should be a unique identifier for your
+           */
+          int i = 0;
+          for (SolrDocument d : docs) {
+//            if (i < 5){
+//              LOG.info(String.format("Document: %d", (i + 1)));
+//              LOG.info(d.toString());
+//            }
+            out.println(String.format(Locale.US, "%s Q0 %s %d %f %s", qid,
+                    d.getFieldValue(FIELD_ID), (i + 1), d.getFieldValue("score"), runTag));
+            i++;
+          }
+        }
+        out.flush();
+        out.close();
+
+        // Needed for orderly shutdown so the SolrClient executor does not delay main thread exit
+        try {
+          solrPool.returnObject(client);
+          solrPool.close();
+        } catch (Exception e) {
+          LOG.error("Exception in SolrClient executor: ", e);
+        }
+
+        final long durationMillis = TimeUnit.MILLISECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+        LOG.info("[Finished] Ranking with similarity: " + taggedSimilarity.similarity.toString());
+        LOG.info("Run " + topics.size() + " topics searched in "
+                + DurationFormatUtils.formatDuration(durationMillis, "HH:mm:ss"));
+      } catch (Exception e) {
+        LOG.error(Thread.currentThread().getName() + ": Unexpected Exception:", e);
+      }
+    }
+  }
+
+  public SearchCollection(SearchArgs args) throws IOException {
+    this.args = args;
+
+    if (args.index == null && !args.solr) {
+      throw new IllegalArgumentException("Must specify one of -index or -solr");
+    }
+    if (args.index != null) {
+      Path indexPath = Paths.get(args.index);
+
+      if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
+        throw new IllegalArgumentException(args.index + " does not exist or is not a directory.");
+      }
+
+      LOG.info("Reading index at " + indexPath);
+      if (args.inmem) {
+        this.reader = DirectoryReader.open(MMapDirectory.open(indexPath));
+      } else {
+        this.reader = DirectoryReader.open(FSDirectory.open(indexPath));
+      }
     } else {
-      this.reader = DirectoryReader.open(FSDirectory.open(indexPath));
+      this.reader = null;
+    }
+
+    LOG.info("Solr? " + args.solr);
+    if (args.solr) {
+      LOG.info("Solr index: " + args.solrIndex);
+      LOG.info("Solr ZooKeeper URL: " + args.zkUrl);
+      LOG.info("SolrClient pool size: " + args.solrPoolSize);
+      GenericObjectPoolConfig<SolrClient> config = new GenericObjectPoolConfig<>();
+      config.setMaxTotal(args.solrPoolSize);
+      config.setMinIdle(args.solrPoolSize); // To guard against premature discarding of solrClients
+      this.solrPool = new GenericObjectPool(new SearchCollection.SolrClientFactory(), config);
     }
 
     // Are we searching tweets?
@@ -234,7 +356,9 @@ public final class SearchCollection implements Closeable {
 
   @Override
   public void close() throws IOException {
-    reader.close();
+    if (reader != null) {
+      reader.close();
+    }
   }
   
   public List<TaggedSimilarity> constructSimiliries() {
@@ -371,8 +495,14 @@ public final class SearchCollection implements Closeable {
           LOG.info("Skipping True: "+outputPath);
           continue;
         }
-        executor.execute(new SearcherThread<K>(reader, topics, taggedSimilarity, cascade.getKey(), cascade.getValue(),
-            outputPath, runTag));
+
+        if (args.solr){
+          executor.execute(new SolrSearcherThread<K>(topics, taggedSimilarity, cascade.getKey(), cascade.getValue(),
+                  outputPath, "Solrini"));
+        } else {
+          executor.execute(new SearcherThread<K>(reader, topics, taggedSimilarity, cascade.getKey(), cascade.getValue(),
+                  outputPath, runTag));
+        }
       }
     }
     executor.shutdown();
@@ -385,6 +515,28 @@ public final class SearchCollection implements Closeable {
       // Preserve interrupt status
       Thread.currentThread().interrupt();
     }
+  }
+
+  private class SolrClientFactory extends BasePooledObjectFactory<SolrClient> {
+
+    @Override
+    public SolrClient create() {
+      return new CloudSolrClient.Builder(Splitter.on(',').splitToList(args.zkUrl), Optional.of(args.zkChroot))
+              .withConnectionTimeout(TIMEOUT)
+              .withSocketTimeout(TIMEOUT)
+              .build();
+    }
+
+    @Override
+    public PooledObject<SolrClient> wrap(SolrClient solrClient) {
+      return new DefaultPooledObject(solrClient);
+    }
+
+    @Override
+    public void destroyObject(PooledObject<SolrClient> pooled) throws Exception {
+      pooled.getObject().close();
+    }
+
   }
   
   public<K> ScoredDocuments search(IndexSearcher searcher, K qid, String queryString, RerankerCascade cascade)
@@ -410,7 +562,42 @@ public final class SearchCollection implements Closeable {
 
     return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
   }
-  
+
+  public<K> SolrDocumentList searchSolr(SolrClient client, K qid, String queryString, RerankerCascade cascade)
+          throws IOException {
+
+    Query query = null;
+    SolrDocumentList list = null;
+
+    if (qc == QueryConstructor.SequentialDependenceModel) {
+      query = new SdmQueryGenerator(args.sdm_tw, args.sdm_ow, args.sdm_uw).buildQuery(FIELD_BODY, analyzer, queryString);
+    } else {
+      query = new BagOfWordsQueryGenerator().buildQuery(FIELD_BODY, analyzer, queryString);
+    }
+
+    SolrQuery solrq = new SolrQuery();
+    solrq.setQuery(query.toString()); // TODO: change this
+    solrq.set("fl", "* score");
+    solrq.setRows(args.hits);
+    solrq.setSort(SortClause.desc("score"));
+    solrq.setRequestHandler("/query");
+
+    try {
+      QueryResponse response = client.query(args.solrIndex, solrq);
+      list = response.getResults();
+      LOG.info("Qid=" + qid + ", Num found=" + list.getNumFound());
+    } catch (Exception e) {
+      LOG.error("Exception during Solr query: ", e);
+    }
+
+    // TODO: need to adapt ScoreTiesAdjusterReranker here?
+//    List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
+//    RerankerContext context = new RerankerContext<>(searcher, qid, query, null, queryString, queryTokens, null, args);
+//
+//    return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
+    return list;
+  }
+
   public<K> ScoredDocuments searchBackgroundLinking(IndexSearcher searcher, K qid, String queryString, RerankerCascade cascade)
       throws IOException, QueryNodeException {
     Query query = null;

@@ -21,8 +21,6 @@ import org.kohsuke.args4j.spi.StringArrayOptionHandler;
 
 public class SearchArgs {
   // required arguments
-  @Option(name = "-index", metaVar = "[path]", required = true, usage = "Path to Lucene index")
-  public String index;
 
   @Option(name = "-topics", metaVar = "[file]", handler = StringArrayOptionHandler.class, required = true, usage = "topics file")
   public String[] topics;
@@ -34,6 +32,10 @@ public class SearchArgs {
   public String topicReader;
 
   // optional arguments
+
+  @Option(name = "-index", metaVar = "[Path]", forbids = {"-solr"}, usage = "path to Lucene index")
+  public String index;
+
   @Option(name = "-threads", metaVar = "[Number]", usage = "Number of Threads")
   public int threads = 1;
   
@@ -46,6 +48,21 @@ public class SearchArgs {
   
   @Option(name = "-skipexists", usage = "When enabled, will skip if the run file exists")
   public Boolean skipexists = false;
+
+  @Option(name = "-solr", forbids = {"-index"}, usage = "boolean switch to determine if we should index into Solr")
+  public boolean solr = false;
+
+  @Option(name = "-solr.index", usage = "the name of the index in Solr")
+  public String solrIndex = null;
+
+  @Option(name = "-solr.poolSize", metaVar = "[NUMBER]", usage = "the number of clients to keep in the pool")
+  public int solrPoolSize = 16;
+
+  @Option(name = "-solr.zkUrl", usage = "the URL of Solr's ZooKeeper (comma separated list of using ensemble)")
+  public String zkUrl = null;
+
+  @Option(name = "-solr.zkChroot", usage = "the ZooKeeper chroot")
+  public String zkChroot = "/";
 
   @Option(name = "-searchtweets", usage = "Whether the search is against a tweet " +
       "index created by IndexCollection -collection TweetCollection")
