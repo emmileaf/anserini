@@ -252,7 +252,7 @@ public final class SearchCollection implements Closeable {
         for (Map.Entry<K, Map<String, String>> entry : topics.entrySet()) {
           K qid = entry.getKey();
           String queryString = entry.getValue().get(args.topicfield);
-          SolrDocumentList docs;
+          ScoredDocuments docs;
 
           if (args.searchtweets || args.searchnewsbackground) {
             throw new NotImplementedException("Not implemented for searchSolr");
@@ -268,15 +268,9 @@ public final class SearchCollection implements Closeable {
            * the fifth column shows the score (integer or floating point) that generated the ranking.
            * the sixth column is called the "run tag" and should be a unique identifier for your
            */
-          int i = 0;
-          for (SolrDocument d : docs) {
-//            if (i < 5){
-//              LOG.info(String.format("Document: %d", (i + 1)));
-//              LOG.info(d.toString());
-//            }
+          for (int i = 0; i < docs.documents.length; i++) {
             out.println(String.format(Locale.US, "%s Q0 %s %d %f %s", qid,
-                    d.getFieldValue(FIELD_ID), (i + 1), d.getFieldValue("score"), runTag));
-            i++;
+                    docs.documents[i].getField(FIELD_ID).stringValue(), (i + 1), docs.scores[i], runTag));
           }
         }
         out.flush();
@@ -563,24 +557,22 @@ public final class SearchCollection implements Closeable {
     return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
   }
 
-  public<K> SolrDocumentList searchSolr(SolrClient client, K qid, String queryString, RerankerCascade cascade)
+  public<K> ScoredDocuments searchSolr(SolrClient client, K qid, String queryString, RerankerCascade cascade)
           throws IOException {
 
     Query query = null;
     SolrDocumentList list = null;
 
-    if (qc == QueryConstructor.SequentialDependenceModel) {
-      query = new SdmQueryGenerator(args.sdm_tw, args.sdm_ow, args.sdm_uw).buildQuery(FIELD_BODY, analyzer, queryString);
-    } else {
-      query = new BagOfWordsQueryGenerator().buildQuery(FIELD_BODY, analyzer, queryString);
+    if (qc == QueryConstructor.SequentialDependenceModel){
+      throw new NotImplementedException("SDM not yet supported by Solrini search.");
     }
 
     SolrQuery solrq = new SolrQuery();
-    solrq.setQuery(query.toString()); // TODO: change this
+    solrq.set("df", "contents");
     solrq.set("fl", "* score");
+    solrq.setQuery(queryString);
     solrq.setRows(args.hits);
     solrq.setSort(SortClause.desc("score"));
-    solrq.setRequestHandler("/query");
 
     try {
       QueryResponse response = client.query(args.solrIndex, solrq);
@@ -590,12 +582,14 @@ public final class SearchCollection implements Closeable {
       LOG.error("Exception during Solr query: ", e);
     }
 
-    // TODO: need to adapt ScoreTiesAdjusterReranker here?
-//    List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
-//    RerankerContext context = new RerankerContext<>(searcher, qid, query, null, queryString, queryTokens, null, args);
-//
-//    return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
-    return list;
+
+    if (isRerank){
+      throw new NotImplementedException("Reranker for Solrini not yet supported");
+    } else {
+      // Run ScoreTiesAdjusterReranker like this for now
+      return cascade.run(ScoredDocuments.fromSolrDocs(list), null);
+
+    }
   }
 
   public<K> ScoredDocuments searchBackgroundLinking(IndexSearcher searcher, K qid, String queryString, RerankerCascade cascade)
