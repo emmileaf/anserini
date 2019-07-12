@@ -73,8 +73,8 @@ public class ScoredDocuments {
 
       SolrDocument d = rs.get(i);
 
-      // Create copy to Lucene Document - just ID for now as placeholder
-      // Intention is to feed to ScoreTiesAdjusterReranker without disturbing other aspects of the reranker code
+      // Create placeholder copies of Lucene Documents
+      // Intention is for compatibility with ScoreTiesAdjusterReranker without disturbing other aspects of reranker code
 
       Document document = new Document();
       String id = d.getFieldValue("id").toString();
@@ -86,7 +86,7 @@ public class ScoredDocuments {
       document.add(new SortedDocValuesField(FIELD_ID, new BytesRef(id)));
       scoredDocs.documents[i] = document;
       scoredDocs.scores[i] = score;
-      scoredDocs.ids[i] = i; // TODO: no internal Lucene ID here - placeholder
+      scoredDocs.ids[i] = i; // no internal Lucene ID available, use index as placeholder
     }
 
     return scoredDocs;
