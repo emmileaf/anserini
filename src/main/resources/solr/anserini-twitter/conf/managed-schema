@@ -532,7 +532,7 @@
 
   <!-- "tweet" field type -->
   <fieldType name="tweet" class="solr.TextField">
-    <analyzer>
+    <analyzer type="index">
       <tokenizer class="solr.WhitespaceTokenizerFactory"/>
       <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
       <filter class="solr.PorterStemFilterFactory"/>
