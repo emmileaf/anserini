@@ -541,7 +541,9 @@
       <tokenizer class="solr.WhitespaceTokenizerFactory"/>
       <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
       <filter class="solr.PorterStemFilterFactory"/>
-      <filter class="solr.LengthFilterFactory" min="1" max="100"/>
+      <!-- Filter out empty tokens resulting from TLCEPF -->
+      <!-- Max (required) chosen as maxTokenLen (256) of WhitespaceTokenizerFactory -->
+      <filter class="solr.LengthFilterFactory" min="1" max="256"/>
     </analyzer>
   </fieldType>
 
