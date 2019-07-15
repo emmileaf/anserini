@@ -514,7 +514,7 @@
   <field name="raw" type="text_general" indexed="false" stored="true" multiValued="false" />
   
   <!-- "contents" searchable but not stored. -->
-  <field name="contents" type="tweet_anserini" indexed="true" stored="false" multiValued="false" />
+  <field name="contents" type="tweet" indexed="true" stored="false" multiValued="false" />
 
   <!-- Other fields -->
   <field name="id_long" type="plong" />
@@ -531,8 +531,18 @@
   <field name="retweet_count" type="plong" />
 
   <!-- "tweet" field type -->
-  <fieldType name="tweet_anserini" class="solr.TextField">
-    <analyzer class="io.anserini.analysis.TweetAnalyzer"/>
+  <fieldType name="tweet" class="solr.TextField">
+    <analyzer type="index">
+      <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+      <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
+      <filter class="solr.PorterStemFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+      <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
+      <filter class="solr.PorterStemFilterFactory"/>
+      <filter class="solr.LengthFilterFactory" min="1" max="100"/>
+    </analyzer>
   </fieldType>
 
   <similarity class="solr.BM25SimilarityFactory">

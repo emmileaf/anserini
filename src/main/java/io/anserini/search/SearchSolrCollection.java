@@ -265,6 +265,7 @@ public final class SearchSolrCollection implements Closeable {
     solrq.setQuery(queryString);
     solrq.setRows(args.hits);
     solrq.setSort(SortClause.desc("score"));
+    solrq.addSort(SortClause.asc(FIELD_ID));
 
     try {
       QueryResponse response = client.query(args.solrIndex, solrq);
@@ -287,6 +288,7 @@ public final class SearchSolrCollection implements Closeable {
     solrq.setQuery(queryString);
     solrq.setRows(args.hits);
     solrq.setSort(SortClause.desc("score"));
+    solrq.addSort(SortClause.desc(TweetGenerator.StatusField.ID_LONG.name));
 
     // Do not consider the tweets with tweet ids that are beyond the queryTweetTime
     // <querytweettime> tag contains the timestamp of the query in terms of the
