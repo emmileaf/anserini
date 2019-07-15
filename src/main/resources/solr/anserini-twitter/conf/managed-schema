@@ -537,6 +537,14 @@
       <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
       <filter class="solr.PorterStemFilterFactory"/>
     </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+      <filter class="io.anserini.analysis.TweetLowerCaseEntityPreservingFilterFactory" />
+      <filter class="solr.PorterStemFilterFactory"/>
+      <!-- Filter out empty tokens resulting from TLCEPF -->
+      <!-- Max (required) chosen as maxTokenLen (256) of WhitespaceTokenizerFactory -->
+      <filter class="solr.LengthFilterFactory" min="1" max="256"/>
+    </analyzer>
   </fieldType>
 
   <similarity class="solr.BM25SimilarityFactory">

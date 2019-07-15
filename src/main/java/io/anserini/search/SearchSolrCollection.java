@@ -262,7 +262,8 @@ public final class SearchSolrCollection implements Closeable {
     SolrQuery solrq = new SolrQuery();
     solrq.set("df", "contents");
     solrq.set("fl", "* score");
-    solrq.setQuery(queryString);
+    // Remove double quotes in query since they are special syntax in Solr query parser
+    solrq.setQuery(queryString.replace("\"", ""));
     solrq.setRows(args.hits);
     solrq.setSort(SortClause.desc("score"));
     solrq.addSort(SortClause.asc(FIELD_ID));
@@ -285,7 +286,8 @@ public final class SearchSolrCollection implements Closeable {
     SolrQuery solrq = new SolrQuery();
     solrq.set("df", "contents");
     solrq.set("fl", "* score");
-    solrq.setQuery(queryString);
+    // Remove double quotes in query since they are special syntax in Solr query parser
+    solrq.setQuery(queryString.replace("\"", ""));
     solrq.setRows(args.hits);
     solrq.setSort(SortClause.desc("score"));
     solrq.addSort(SortClause.desc(TweetGenerator.StatusField.ID_LONG.name));
