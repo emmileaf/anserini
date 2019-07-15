@@ -137,7 +137,11 @@ public final class TweetLowerCaseEntityPreservingFilter extends TokenFilter {
     }
 
     removeNonAlphanumeric();
-    return true;
+    if (termAtt.length() > 0) {
+      return true;
+    } else {
+      return incrementToken();
+    }
   }
 
   /**
