@@ -20,6 +20,7 @@ import com.google.common.base.Splitter;
 import io.anserini.rerank.ScoredDocuments;
 import io.anserini.rerank.lib.ScoreTiesAdjusterReranker;
 import io.anserini.search.topicreader.TopicReader;
+import io.anserini.index.generator.TweetGenerator;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.ObjectPool;
@@ -29,6 +30,8 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.document.LongPoint;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -103,6 +106,10 @@ public final class SearchSolrCollection implements Closeable {
     @Option(name = "-topicfield", usage = "Which field of the query should be used, default \"title\"." +
             " For TREC ad hoc topics, description or narrative can be used.")
     public String topicfield = "title";
+
+    @Option(name = "-searchtweets", usage = "Whether the search is against a tweet " +
+            "index created by IndexCollection -collection TweetCollection")
+    public Boolean searchtweets = false;
 
     @Option(name = "-hits", metaVar = "[number]", required = false, usage = "max number of hits to return")
     public int hits = 1000;
@@ -242,7 +249,6 @@ public final class SearchSolrCollection implements Closeable {
     }
   }
 
-
   public<K> ScoredDocuments searchSolr(SolrClient client, K qid, String queryString)
           throws IOException {
 
@@ -266,38 +272,33 @@ public final class SearchSolrCollection implements Closeable {
     return reranker.rerank(ScoredDocuments.fromSolrDocs(results), null);
   }
 
-//  public<K> ScoredDocuments searchTweets(IndexSearcher searcher, K qid, String queryString, long t, RerankerCascade cascade) throws IOException {
-//    Query keywordQuery;
-//    if (qc == QueryConstructor.SequentialDependenceModel) {
-//      keywordQuery = new SdmQueryGenerator(args.sdm_tw, args.sdm_ow, args.sdm_uw).buildQuery(FIELD_BODY, analyzer, queryString);
-//    } else {
-//      keywordQuery = new BagOfWordsQueryGenerator().buildQuery(FIELD_BODY, analyzer, queryString);
-//    }
-//    List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
-//
-//    // Do not consider the tweets with tweet ids that are beyond the queryTweetTime
-//    // <querytweettime> tag contains the timestamp of the query in terms of the
-//    // chronologically nearest tweet id within the corpus
-//    Query filter = LongPoint.newRangeQuery(TweetGenerator.StatusField.ID_LONG.name, 0L, t);
-//    BooleanQuery.Builder builder = new BooleanQuery.Builder();
-//    builder.add(filter, BooleanClause.Occur.FILTER);
-//    builder.add(keywordQuery, BooleanClause.Occur.MUST);
-//    Query compositeQuery = builder.build();
-//
-//
-//    TopDocs rs = new TopDocs(new TotalHits(0,TotalHits.Relation.EQUAL_TO), new ScoreDoc[]{});
-//    if (!(isRerank && args.rerankcutoff <= 0)) {
-//      if (args.arbitraryScoreTieBreak) {// Figure out how to break the scoring ties.
-//        rs = searcher.search(compositeQuery, isRerank ? args.rerankcutoff : args.hits);
-//      } else {
-//        rs = searcher.search(compositeQuery, isRerank ? args.rerankcutoff : args.hits, BREAK_SCORE_TIES_BY_TWEETID, true);
-//      }
-//    }
-//
-//    RerankerContext context = new RerankerContext<>(searcher, qid, keywordQuery, null, queryString, queryTokens, filter, args);
-//
-//    return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
-//  }
+  public<K> ScoredDocuments searchSolrTweets(SolrClient client, K qid, String queryString, long t) throws IOException {
+
+    SolrDocumentList results = null;
+
+    SolrQuery solrq = new SolrQuery();
+    solrq.set("df", "contents");
+    solrq.set("fl", "* score");
+    solrq.setQuery(queryString);
+    solrq.setRows(args.hits);
+    solrq.setSort(SortClause.desc("score"));
+
+    // Do not consider the tweets with tweet ids that are beyond the queryTweetTime
+    // <querytweettime> tag contains the timestamp of the query in terms of the
+    // chronologically nearest tweet id within the corpus
+    Query filter = LongPoint.newRangeQuery(TweetGenerator.StatusField.ID_LONG.name, 0L, t);
+    solrq.set("fq", filter.toString());
+
+    try {
+      QueryResponse response = client.query(args.solrIndex, solrq);
+      results = response.getResults();
+    } catch (Exception e) {
+      LOG.error("Exception during Solr query: ", e);
+    }
+
+    ScoreTiesAdjusterReranker reranker = new ScoreTiesAdjusterReranker();
+    return reranker.rerank(ScoredDocuments.fromSolrDocs(results), null);
+  }
 
   @Override
   public void close() {
