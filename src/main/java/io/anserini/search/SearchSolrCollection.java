@@ -146,7 +146,12 @@ public final class SearchSolrCollection implements Closeable {
         for (Map.Entry<K, Map<String, String>> entry : topics.entrySet()) {
           K qid = entry.getKey();
           String queryString = entry.getValue().get(args.topicfield);
-          ScoredDocuments docs = searchSolr(client, qid, queryString);
+          ScoredDocuments docs;
+          if (args.searchtweets) {
+            docs = searchSolrTweets(client, qid, queryString, Long.parseLong(entry.getValue().get("time")));
+          } else {
+            docs = searchSolr(client, qid, queryString);
+          }
 
           /**
            * the first column is the topic number.
