@@ -110,7 +110,7 @@
               <id>SearchSolrCollection</id>
             </program>
                         <program>
-              <mainClass>io.anserini.search.SearchSolrCollection</mainClass>
+              <mainClass>io.anserini.search.SearchESCollection</mainClass>
               <id>SearchESCollection</id>
             </program>
             <program>
