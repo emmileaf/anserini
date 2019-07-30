@@ -77,6 +77,9 @@ curl --user elastic:changeme -XPUT -H 'Content-Type: application/json' 'localhos
               "id":{
                 "type":"keyword"
               },
+              "id_long":{
+                "type":"keyword"
+              },
               "contents":{
                 "type":"text",
                 "store": false,
