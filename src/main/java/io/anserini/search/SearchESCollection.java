@@ -34,9 +34,11 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.document.LongPoint;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -153,7 +155,7 @@ public final class SearchESCollection implements Closeable {
           String queryString = entry.getValue().get(args.topicfield);
           ScoredDocuments docs;
           if (args.searchtweets) {
-              throw new NotImplementedException("Tweet collection not yet supported by Elastirini.");
+            docs = searchESTweets(queryString, Long.parseLong(entry.getValue().get("time")));
           } else {
             docs = searchES(queryString);
           }
@@ -225,9 +227,17 @@ public final class SearchESCollection implements Closeable {
 
     SearchHits results = null;
 
+    String specials = "+-=&|><!(){}[]^\"~*?:\\/";
+
+    for (int i = 0; i < specials.length(); i++){
+      char c = specials.charAt(i);
+      queryString = queryString.replace(String.valueOf(c), " ");
+    }
+
     QueryStringQueryBuilder query = QueryBuilders
-            .queryStringQuery(queryString.replace("\"", ""))
-            .defaultField("contents");
+            .queryStringQuery(queryString)
+            .defaultField("contents")
+            .analyzer("english");
 
     SearchRequest searchRequest = new SearchRequest(args.esIndex);
     SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
@@ -240,6 +250,59 @@ public final class SearchESCollection implements Closeable {
     try {
       SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
       results = searchResponse.getHits();
+//      LOG.info("Query string: "  + queryString);
+//      LOG.info("Query: "  + query.toString());
+//      LOG.info(String.format("Query results: %d", results.getHits().length));
+    } catch (Exception e) {
+      LOG.error("Exception during ES query: ", e);
+    }
+
+    ScoreTiesAdjusterReranker reranker = new ScoreTiesAdjusterReranker();
+    return reranker.rerank(ScoredDocuments.fromESDocs(results), null);
+  }
+
+  public<K> ScoredDocuments searchESTweets(String queryString, long t){
+
+    SearchHits results = null;
+
+    String specials = "+-=&|><!(){}[]^\"~*?:\\/";
+
+    for (int i = 0; i < specials.length(); i++){
+      char c = specials.charAt(i);
+      queryString = queryString.replace(String.valueOf(c), " ");
+    }
+
+    // Do not consider the tweets with tweet ids that are beyond the queryTweetTime
+    // <querytweettime> tag contains the timestamp of the query in terms of the
+    // chronologically nearest tweet id within the corpus
+    RangeQueryBuilder queryTweetTime = QueryBuilders
+            .rangeQuery(TweetGenerator.StatusField.ID_LONG.name)
+            .from(0L)
+            .to(t);
+
+    QueryStringQueryBuilder queryTerms = QueryBuilders
+            .queryStringQuery(queryString)
+            .defaultField("contents")
+            .analyzer("english");
+
+    BoolQueryBuilder query = QueryBuilders.boolQuery()
+            .filter(queryTweetTime)
+            .should(queryTerms);
+
+    SearchRequest searchRequest = new SearchRequest(args.esIndex);
+    SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+    sourceBuilder.query(query);
+    sourceBuilder.size(args.hits);
+    sourceBuilder.sort(new ScoreSortBuilder().order(SortOrder.DESC));
+    sourceBuilder.sort(new FieldSortBuilder(TweetGenerator.StatusField.ID_LONG.name).order(SortOrder.DESC));
+    searchRequest.source(sourceBuilder);
+
+    try {
+      SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+      results = searchResponse.getHits();
+//      LOG.info("Query string: "  + queryString);
+//      LOG.info("Query: "  + query.toString());
+//      LOG.info(String.format("Query results: %d", results.getHits().length));
     } catch (Exception e) {
       LOG.error("Exception during ES query: ", e);
     }

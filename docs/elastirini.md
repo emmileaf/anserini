@@ -74,6 +74,20 @@ curl --user elastic:changeme -XPUT -H 'Content-Type: application/json' 'localhos
               }
             ],
             "properties":{
+              "id":{
+                "type":"keyword"
+              },
+              "contents":{
+                "type":"text",
+                "store": false,
+                "index": true,
+                "analyzer": "english"
+              },
+              "raw":{
+                "type":"text",
+                "store": true,
+                "index": false
+              },
               "epoch":{
                 "type":"date",
                 "format":"epoch_second"
