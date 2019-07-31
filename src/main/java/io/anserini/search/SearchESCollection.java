@@ -16,12 +16,10 @@
 
 package io.anserini.search;
 
-import com.google.common.base.Splitter;
 import io.anserini.rerank.ScoredDocuments;
 import io.anserini.rerank.lib.ScoreTiesAdjusterReranker;
 import io.anserini.search.topicreader.TopicReader;
 import io.anserini.index.generator.TweetGenerator;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -30,8 +28,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.document.LongPoint;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -43,8 +39,6 @@ import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.ScoreSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
@@ -64,7 +58,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
@@ -250,9 +243,6 @@ public final class SearchESCollection implements Closeable {
     try {
       SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
       results = searchResponse.getHits();
-//      LOG.info("Query string: "  + queryString);
-//      LOG.info("Query: "  + query.toString());
-//      LOG.info(String.format("Query results: %d", results.getHits().length));
     } catch (Exception e) {
       LOG.error("Exception during ES query: ", e);
     }
@@ -300,9 +290,6 @@ public final class SearchESCollection implements Closeable {
     try {
       SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
       results = searchResponse.getHits();
-//      LOG.info("Query string: "  + queryString);
-//      LOG.info("Query: "  + query.toString());
-//      LOG.info(String.format("Query results: %d", results.getHits().length));
     } catch (Exception e) {
       LOG.error("Exception during ES query: ", e);
     }

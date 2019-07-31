@@ -127,5 +127,3 @@ public class ScoredDocuments {
     return scoredDocs;
   }
 }
-
-
