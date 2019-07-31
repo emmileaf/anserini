@@ -125,3 +125,18 @@ sh target/appassembler/bin/IndexCollection -collection TrecCollection -generator
 ```
 
 There are also other `-es` parameters that you can specify as you see fit.
+
+You can also run the following command to replicate Anserini BM25 retrieval:
+
+```
+sh target/appassembler/bin/SearchESCollection -topicreader Trec \
+  -es.index robust04_test2 \
+  -topics src/main/resources/topics-and-qrels/topics.robust04.301-450.601-700.txt \
+  -output run.es.robust04.bm25.topics.robust04.301-450.601-700.txt
+```
+
+Evaluation can be performed using `trec_eval`:
+
+```
+eval/trec_eval.9.0.4/trec_eval -m map -m P.30 src/main/resources/topics-and-qrels/qrels.robust2004.txt run.es.robust04.bm25.topics.robust04.301-450.601-700.txt
+```
