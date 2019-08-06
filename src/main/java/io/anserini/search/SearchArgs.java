@@ -223,7 +223,7 @@ public class SearchArgs {
   @Option(name = "-axiom", usage = "use Axiomatic query expansion model for the reranking")
   public boolean axiom = false;
 
-  @Option(name = "-axiom", usage = "use Axiomatic query expansion model for the reranking, compute MI wrt entire collection")
+  @Option(name = "-axiom.collection", usage = "use Axiomatic query expansion model for the reranking, compute MI wrt entire collection")
   public boolean axiom_collection = false;
 
   @Option(name = "-axiom.outputQuery", usage = "output original and expanded query")

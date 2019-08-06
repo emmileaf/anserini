@@ -156,11 +156,13 @@ public class AxiomReranker<T> implements Reranker<T> {
       if (useCollection) {
         // Extract an inverted list from the reranking pool
         List<String> termsList = extractTermsList(usedDocs, context, null);
+        LOG.info("Extracted list of " + String.valueOf(termsList.size()) + " terms.");
         // Calculate all the terms in the reranking pool and pick top K of them
         expandedTermScores = computeTermScoreCollection(termsList, context);
       } else {
         // Extract an inverted list from the reranking pool
         Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
+        LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
         // Calculate all the terms in the reranking pool and pick top K of them
         expandedTermScores = computeTermScore(termInvertedList, context);
       }
@@ -380,7 +382,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
                                                  Pattern filterPattern) throws Exception, IOException {
-    LOG.info("extractTerms() called by rerank().");
+    LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
@@ -543,6 +545,7 @@ public class AxiomReranker<T> implements Reranker<T> {
     List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
     for (Map.Entry<String, Integer> q : queryTermsCounts.entrySet()) {
       String queryTerm = q.getKey();
+      LOG.info("queryTerm: " + queryTerm);
       long df = reader.docFreq(new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm));
       if (df == 0L) {
         continue;
@@ -553,13 +556,14 @@ public class AxiomReranker<T> implements Reranker<T> {
         PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
         double selfMI;
         if (useCollection ) {
-          Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
-          selfMI = computeMICollection(termx, termx, context);
+          Term termq = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
+          selfMI = computeMICollection(termq, termq, context);
           LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
         } else {
           selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
           LOG.info("Computed wrt reranking pool: selfMI = " + String.valueOf(selfMI));
         }
+        int count = 0;
         for (Map.Entry<String, Set<Integer>> termEntry : termInvertedList.entrySet()) {
           double score;
           if (termEntry.getKey().equals(queryTerm)) { // The mutual information to itself will always be 1
@@ -570,14 +574,21 @@ public class AxiomReranker<T> implements Reranker<T> {
               Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
               Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, termEntry.getKey());
               crossMI = computeMICollection(termx, termy, context);
-              LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
+              if (count < 2) {
+                LOG.info("Term: " + termEntry.getKey());
+                LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
+              }
             } else {
               crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
-              LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
+              if (count < 2) {
+                LOG.info("Term: " + termEntry.getKey());
+                LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
+              }
             }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(termEntry.getKey(), score));
+          count += 1;
         }
         allTermScoresPQ.add(termScorePQ);
       }
@@ -669,6 +680,7 @@ public class AxiomReranker<T> implements Reranker<T> {
     List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
     for (Map.Entry<String, Integer> q : queryTermsCounts.entrySet()) {
       String queryTerm = q.getKey();
+      LOG.info("queryTerm: " + queryTerm);
       long df = reader.docFreq(new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm));
       if (df == 0L) {
         continue;
@@ -681,6 +693,7 @@ public class AxiomReranker<T> implements Reranker<T> {
         double selfMI = computeMICollection(termq, termq, context);
         LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
 
+        int count = 0;
         for (String term : terms) {
           double score;
           if (term.equals(queryTerm)) { // The mutual information to itself will always be 1
@@ -689,10 +702,14 @@ public class AxiomReranker<T> implements Reranker<T> {
             Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
             Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, term);
             double crossMI = computeMICollection(termx, termy, context);
-            LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
+            if (count < 2) {
+              LOG.info("Term: " + term);
+              LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
+            }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(term, score));
+          count += 1;
         }
         allTermScoresPQ.add(termScorePQ);
       }

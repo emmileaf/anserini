@@ -170,6 +170,7 @@ public final class SearchCollection implements Closeable {
             docs = searchBackgroundLinking(this.searcher, qid, queryString, cascade);
           } else{
             LOG.info("SearcherThread.run() calling search().");
+            LOG.info("QueryString: " + queryString);
             docs = search(this.searcher, qid, queryString, cascade);
           }
     
@@ -186,7 +187,7 @@ public final class SearchCollection implements Closeable {
                 docs.documents[i].getField(FIELD_ID).stringValue(), (i + 1), docs.scores[i], runTag));
           }
           // Remove: only run 1 query for debugging
-          break;
+//          break;
         }
         out.flush();
         out.close();
@@ -410,7 +411,7 @@ public final class SearchCollection implements Closeable {
 
     List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
     RerankerContext context = new RerankerContext<>(searcher, qid, query, null, queryString, queryTokens, null, args);
-    LOG.info("search() calling cascade.run() with reranker context and " + rs.totalHits.toString() + " document hits.");
+    LOG.info("search() calling cascade.run() with reranker context and " + String.valueOf(rs.totalHits.value) + " document hits.");
 
     return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
   }
