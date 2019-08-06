@@ -169,6 +169,7 @@ public final class SearchCollection implements Closeable {
           } else if (args.searchnewsbackground) {
             docs = searchBackgroundLinking(this.searcher, qid, queryString, cascade);
           } else{
+            LOG.info("SearcherThread.run() calling search().");
             docs = search(this.searcher, qid, queryString, cascade);
           }
     
@@ -184,6 +185,8 @@ public final class SearchCollection implements Closeable {
             out.println(String.format(Locale.US, "%s Q0 %s %d %f %s", qid,
                 docs.documents[i].getField(FIELD_ID).stringValue(), (i + 1), docs.scores[i], runTag));
           }
+          // Remove: only run 1 query for debugging
+          break;
         }
         out.flush();
         out.close();
@@ -303,7 +306,7 @@ public final class SearchCollection implements Closeable {
                 cascade.add(new AxiomReranker(args.index, args.axiom_index, FIELD_BODY,
                     args.axiom_deterministic, Integer.valueOf(seed), Integer.valueOf(r),
                     Integer.valueOf(n), Float.valueOf(beta), Integer.valueOf(top),
-                    args.axiom_docids, args.axiom_outputQuery, args.searchtweets));
+                    args.axiom_docids, args.axiom_outputQuery, args.searchtweets, args.axiom_collection));
                 cascade.add(new ScoreTiesAdjusterReranker());
                 String tag = "axiom.seed:"+seed+",axiom.r:"+r+",axiom.n:"+n+",axiom.beta:"+beta+",axiom.top:"+top;
                 cascades.put(tag, cascade);
@@ -407,6 +410,7 @@ public final class SearchCollection implements Closeable {
 
     List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
     RerankerContext context = new RerankerContext<>(searcher, qid, query, null, queryString, queryTokens, null, args);
+    LOG.info("search() calling cascade.run() with reranker context and " + rs.totalHits.toString() + " document hits.");
 
     return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
   }

@@ -34,6 +34,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
@@ -104,10 +105,11 @@ public class AxiomReranker<T> implements Reranker<T> {
   private final float beta; // scaling parameter
   private final boolean outputQuery;
   private final boolean searchTweets;
+  private final boolean useCollection;
 
   public AxiomReranker(String originalIndexPath, String externalIndexPath, String field, boolean deterministic,
                        long seed, int r, int n, float beta, int top, String docidsCachePath,
-                       boolean outputQuery, boolean searchTweets) throws IOException {
+                       boolean outputQuery, boolean searchTweets, boolean useCollection) throws IOException {
     this.field = field;
     this.deterministic = deterministic;
     this.seed = seed;
@@ -119,6 +121,7 @@ public class AxiomReranker<T> implements Reranker<T> {
     this.externalIndexPath = externalIndexPath;
     this.outputQuery = outputQuery;
     this.searchTweets = searchTweets;
+    this.useCollection = useCollection;
 
     if (this.deterministic && this.N > 1) {
       if (docidsCachePath != null) {
@@ -142,6 +145,7 @@ public class AxiomReranker<T> implements Reranker<T> {
   @Override
   public ScoredDocuments rerank(ScoredDocuments docs, RerankerContext<T> context) {
     assert(docs.documents.length == docs.scores.length);
+    LOG.info("Reranking with AxiomReranker.rerank().");
 
     try {
       // First to search against external index if it is not null
@@ -270,6 +274,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return Top ranked ScoredDocuments from searching external index
    */
   private ScoredDocuments processExternalContext(ScoredDocuments docs, RerankerContext<T> context) throws IOException {
+    LOG.info("processExternalContext() called by rerank().");
     if (this.externalIndexPath != null) {
       Path indexPath = Paths.get(this.externalIndexPath);
       if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
@@ -289,6 +294,7 @@ public class AxiomReranker<T> implements Reranker<T> {
 
       return searchTopDocs(null, externalContext);
     } else {
+      LOG.info("processExternalContext(): no externalIndexPath provided");
       return docs;
     }
   }
@@ -305,9 +311,17 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context)
     throws IOException {
+    LOG.info("selectDocs() called by rerank().");
     Set<Integer> docidSet = new HashSet<>(Arrays.asList(ArrayUtils.toObject(
       Arrays.copyOfRange(docs.ids, 0, Math.min(this.R, docs.ids.length)))));
+
+    if (this.useCollection) {
+      LOG.info("Using entire collection as working set, selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
+      return docidSet;
+    }
+
     long targetSize = this.R * this.N;
+    LOG.info("Target size from selectDocs(): " + String.valueOf(targetSize));
 
     if (docidSet.size() < targetSize) {
       IndexReader reader;
@@ -358,6 +372,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Set<Integer>> extractTerms(Set<Integer> docIds, RerankerContext<T> context,
                                                  Pattern filterPattern) throws Exception, IOException {
+    LOG.info("extractTerms() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
@@ -366,7 +381,7 @@ public class AxiomReranker<T> implements Reranker<T> {
         throw new IllegalArgumentException(this.externalIndexPath + " does not exist or is not a directory.");
       }
       reader = DirectoryReader.open(FSDirectory.open(indexPath));
-      searcher = new IndexSearcher(reader);
+//      searcher = new IndexSearcher(reader);
     } else {
       searcher = context.getIndexSearcher();
       reader = searcher.getIndexReader();
@@ -420,6 +435,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Double> computeTermScore(
     Map<String, Set<Integer>> termInvertedList, RerankerContext<T> context) throws IOException {
+    LOG.info("computeTermScore() called by rerank().");
     class ScoreComparator implements Comparator<Pair<String, Double>> {
       public int compare(Pair<String, Double> a, Pair<String, Double> b) {
         int cmp = Double.compare(b.getRight(), a.getRight());
@@ -452,11 +468,19 @@ public class AxiomReranker<T> implements Reranker<T> {
       queryTermsCounts.put(qt, queryTermsCounts.getOrDefault(qt, 0) + 1);
     }
 
-    Set<Integer> allDocIds = new HashSet<>();
-    for (Set<Integer> s : termInvertedList.values()) {
-      allDocIds.addAll(s);
+    int docIdsCount;
+
+    if (this.useCollection) {
+      // count docids in entire collection
+      docIdsCount = reader.numDocs() == -1 ? reader.maxDoc() : reader.numDocs();
+    } else {
+
+      Set<Integer> allDocIds = new HashSet<>();
+      for (Set<Integer> s : termInvertedList.values()) {
+        allDocIds.addAll(s);
+      }
+      docIdsCount = allDocIds.size();
     }
-    int docIdsCount = allDocIds.size();
 
     // Each priority queue corresponds to a query term: The p-queue itself stores all terms
     // in the reranking pool and their reranking scores to the query term.
@@ -471,13 +495,27 @@ public class AxiomReranker<T> implements Reranker<T> {
       int qtf = q.getValue();
       if (termInvertedList.containsKey(queryTerm)) {
         PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
-        double selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
+        double selfMI;
+        if (useCollection ) {
+          Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
+          selfMI = computeMICollection(termx, termx, context);
+
+        } else {
+          selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
+        }
         for (Map.Entry<String, Set<Integer>> termEntry : termInvertedList.entrySet()) {
           double score;
           if (termEntry.getKey().equals(queryTerm)) { // The mutual information to itself will always be 1
             score = idf * qtf;
           } else {
-            double crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
+            double crossMI;
+            if (useCollection) {
+              Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
+              Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, termEntry.getKey());
+              crossMI = computeMICollection(termx, termy, context);
+            } else {
+              crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
+            }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(termEntry.getKey(), score));
@@ -510,6 +548,51 @@ public class AxiomReranker<T> implements Reranker<T> {
     }
 
     return resultTermScores;
+  }
+
+  private double computeMICollection(Term termx, Term termy, RerankerContext<T> context) throws IOException {
+
+    IndexSearcher searcher = context.getIndexSearcher();
+    IndexReader reader = searcher.getIndexReader();
+
+    int totalDocCount = reader.numDocs();
+    int x1 = reader.docFreq(termx);
+    int y1 = reader.docFreq(termy);
+    int x0 = totalDocCount - x1;
+    int y0 = totalDocCount - y1;
+
+    if (x1 == 0 || x0 == 0 || y1 == 0 || y0 == 0) {
+      return 0;
+    }
+
+    float pX0 = 1.0f * x0 / totalDocCount;
+    float pX1 = 1.0f * x1 / totalDocCount;
+    float pY0 = 1.0f * y0 / totalDocCount;
+    float pY1 = 1.0f * y1 / totalDocCount;
+
+    TermQuery tqx = new TermQuery(termx);
+    TermQuery tqy = new TermQuery(termy);
+    BooleanQuery query = new BooleanQuery.Builder()
+            .add(tqx, BooleanClause.Occur.MUST)
+            .add(tqy, BooleanClause.Occur.MUST)
+            .build();
+
+    int numXY11 = searcher.count(query); //doc num both x and y occur
+    int numXY10 = x1 - numXY11;    //doc num that x occurs but y doesn't
+    int numXY01 = y1 - numXY11;    // doc num that y occurs but x doesn't
+    int numXY00 = totalDocCount - numXY11 - numXY10 - numXY01; //doc num that neither x nor y occurs
+
+    float pXY11 = 1.0f * numXY11 / totalDocCount;
+    float pXY10 = 1.0f * numXY10 / totalDocCount;
+    float pXY01 = 1.0f * numXY01 / totalDocCount;
+    float pXY00 = 1.0f * numXY00 / totalDocCount;
+
+    double m00 = 0, m01 = 0, m10 = 0, m11 = 0;
+    if (pXY00 != 0) m00 = pXY00 * Math.log(pXY00 / (pX0 * pY0));
+    if (pXY01 != 0) m01 = pXY01 * Math.log(pXY01 / (pX0 * pY1));
+    if (pXY10 != 0) m10 = pXY10 * Math.log(pXY10 / (pX1 * pY0));
+    if (pXY11 != 0) m11 = pXY11 * Math.log(pXY11 / (pX1 * pY1));
+    return m00 + m10 + m01 + m11;
   }
 
   private double computeMutualInformation(Set<Integer> docidsX, Set<Integer> docidsY, int totalDocCount) {
@@ -545,7 +628,7 @@ public class AxiomReranker<T> implements Reranker<T> {
     if (pXY11 != 0) m11 = pXY11 * Math.log(pXY11 / (pX1 * pY1));
     return m00 + m10 + m01 + m11;
   }
-  
+
   @Override
   public String tag() {
     return "AxiomaticRerank(R="+R+",N="+N+",K:"+K+",M:"+M+")";
