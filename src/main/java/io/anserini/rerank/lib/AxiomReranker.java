@@ -152,10 +152,18 @@ public class AxiomReranker<T> implements Reranker<T> {
       docs = processExternalContext(docs, context);
       // Select R*M docs from the original ranking list as the reranking pool
       Set<Integer> usedDocs = selectDocs(docs, context);
-      // Extract an inverted list from the reranking pool
-      Map<String, Set<Integer>> termInvertedList = extractTerms(usedDocs, context, null);
-      // Calculate all the terms in the reranking pool and pick top K of them
-      Map<String, Double> expandedTermScores = computeTermScore(termInvertedList, context);
+      Map<String, Double> expandedTermScores;
+      if (useCollection) {
+        // Extract an inverted list from the reranking pool
+        List<String> termsList = extractTermsList(usedDocs, context, null);
+        // Calculate all the terms in the reranking pool and pick top K of them
+        expandedTermScores = computeTermScoreCollection(termsList, context);
+      } else {
+        // Extract an inverted list from the reranking pool
+        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
+        // Calculate all the terms in the reranking pool and pick top K of them
+        expandedTermScores = computeTermScore(termInvertedList, context);
+      }
 
       BooleanQuery.Builder nqBuilder = new BooleanQuery.Builder();
 
@@ -370,7 +378,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
    * @return A Map of <term -> Set<docId>> kind of a small inverted list where the Set of docIds is where the term occurs
    */
-  private Map<String, Set<Integer>> extractTerms(Set<Integer> docIds, RerankerContext<T> context,
+  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
                                                  Pattern filterPattern) throws Exception, IOException {
     LOG.info("extractTerms() called by rerank().");
     IndexReader reader;
@@ -415,6 +423,54 @@ public class AxiomReranker<T> implements Reranker<T> {
   }
 
   /**
+   * Extract ALL the terms from the documents pool.
+   *
+   * @param docIds The reranking pool, see {@link #selectDocs} for explanations
+   * @param context An instance of RerankerContext
+   * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
+   * @return A List of <String> terms
+   */
+  private List<String> extractTermsList(Set<Integer> docIds, RerankerContext<T> context,
+                                                 Pattern filterPattern) throws Exception, IOException {
+    LOG.info("extractTermsList() called by rerank().");
+    IndexReader reader;
+    IndexSearcher searcher;
+    if (this.externalIndexPath != null) {
+      Path indexPath = Paths.get(this.externalIndexPath);
+      if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
+        throw new IllegalArgumentException(this.externalIndexPath + " does not exist or is not a directory.");
+      }
+      reader = DirectoryReader.open(FSDirectory.open(indexPath));
+    } else {
+      searcher = context.getIndexSearcher();
+      reader = searcher.getIndexReader();
+    }
+    List<String> termsList = new ArrayList<>();
+    for (int docid : docIds) {
+      Terms terms = reader.getTermVector(docid, LuceneDocumentGenerator.FIELD_BODY);
+      if (terms == null) {
+        LOG.warn("Document vector not stored for docid: " + docid);
+        continue;
+      }
+      TermsEnum te = terms.iterator();
+      if (te == null) {
+        LOG.warn("Document vector not stored for docid: " + docid);
+        continue;
+      }
+      while ((te.next()) != null) {
+        String term = te.term().utf8ToString();
+        // We do some noisy filtering here ... pure empirical heuristic
+        if (term.length() < 2) continue;
+        if (!term.matches("[a-z]+")) continue;
+        if (filterPattern == null || filterPattern.matcher(term).matches()) {
+          termsList.add(term);
+        }
+      }
+    }
+    return termsList;
+  }
+
+  /**
    * Calculate the scores (weights) of each term that occured in the reranking pool.
    * The Process:
    * 1. For each query term, calculate its score for each term in the reranking pool. the score
@@ -434,7 +490,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return Map<String, Double> Top terms and their weight scores in a HashMap
    */
   private Map<String, Double> computeTermScore(
-    Map<String, Set<Integer>> termInvertedList, RerankerContext<T> context) throws IOException {
+          Map<String, Set<Integer>> termInvertedList, RerankerContext<T> context) throws IOException {
     LOG.info("computeTermScore() called by rerank().");
     class ScoreComparator implements Comparator<Pair<String, Double>> {
       public int compare(Pair<String, Double> a, Pair<String, Double> b) {
@@ -499,9 +555,10 @@ public class AxiomReranker<T> implements Reranker<T> {
         if (useCollection ) {
           Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
           selfMI = computeMICollection(termx, termx, context);
-
+          LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
         } else {
           selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
+          LOG.info("Computed wrt reranking pool: selfMI = " + String.valueOf(selfMI));
         }
         for (Map.Entry<String, Set<Integer>> termEntry : termInvertedList.entrySet()) {
           double score;
@@ -513,12 +570,129 @@ public class AxiomReranker<T> implements Reranker<T> {
               Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
               Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, termEntry.getKey());
               crossMI = computeMICollection(termx, termy, context);
+              LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
             } else {
               crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
+              LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
             }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(termEntry.getKey(), score));
+        }
+        allTermScoresPQ.add(termScorePQ);
+      }
+    }
+
+    Map<String, Double> aggTermScores = new HashMap<>();
+    for (PriorityQueue<Pair<String, Double>> termScores : allTermScoresPQ) {
+      for (int i = 0; i < Math.min(termScores.size(), Math.max(this.M, this.K)); i++) {
+        Pair<String, Double> termScore = termScores.poll();
+        String term = termScore.getLeft();
+        Double score = termScore.getRight();
+        if (score - 0.0 > 1e-8) {
+          aggTermScores.put(term, aggTermScores.getOrDefault(term, 0.0) + score);
+        }
+      }
+    }
+    PriorityQueue<Pair<String, Double>> termScoresPQ = new PriorityQueue<>(new ScoreComparator());
+    for (Map.Entry<String, Double> termScore : aggTermScores.entrySet()) {
+      termScoresPQ.add(Pair.of(termScore.getKey(), termScore.getValue() / queryTerms.size()));
+    }
+    Map<String, Double> resultTermScores = new HashMap<>();
+    for (int i = 0; i < Math.min(termScoresPQ.size(), this.M); i++) {
+      Pair<String, Double> termScore = termScoresPQ.poll();
+      String term = termScore.getKey();
+      double score = termScore.getValue();
+      resultTermScores.put(term, score);
+    }
+
+    return resultTermScores;
+  }
+
+  /**
+   * Calculate the scores (weights) of each term that occured in the reranking pool.
+   * The Process:
+   * 1. For each query term, calculate its score for each term in the reranking pool. the score
+   * is calcuated as
+   * <pre>
+   * P(both occurs)*log{P(both occurs)/P(t1 occurs)/P(t2 occurs)}
+   * + P(both not occurs)*log{P(both not occurs)/P(t1 not occurs)/P(t2 not occurs)}
+   * + P(t1 occurs t2 not occurs)*log{P(t1 occurs t2 not occurs)/P(t1 occurs)/P(t2 not occurs)}
+   * + P(t1 not occurs t2 occurs)*log{P(t1 not occurs t2 occurs)/P(t1 not occurs)/P(t2 occurs)}
+   * </pre>
+   * 2. For each query term the scores of every other term in the reranking pool are stored in a
+   * PriorityQueue, only the top {@code K} are kept.
+   * 3. Add the scores of the same term together and pick the top {@code M} ones.
+   *
+   * @param terms A List of <String> of terms
+   * @param context An instance of RerankerContext
+   * @return Map<String, Double> Top terms and their weight scores in a HashMap
+   */
+  private Map<String, Double> computeTermScoreCollection(List<String> terms, RerankerContext<T> context) throws IOException {
+    LOG.info("computeTermScoreCollection() called by rerank().");
+    class ScoreComparator implements Comparator<Pair<String, Double>> {
+      public int compare(Pair<String, Double> a, Pair<String, Double> b) {
+        int cmp = Double.compare(b.getRight(), a.getRight());
+        if (cmp == 0) {
+          return a.getLeft().compareToIgnoreCase(b.getLeft());
+        } else {
+          return cmp;
+        }
+      }
+    }
+
+    // get collection statistics so that we can get idf later on.
+    IndexReader reader;
+    if (this.externalIndexPath != null) {
+      Path indexPath = Paths.get(this.externalIndexPath);
+      if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
+        throw new IllegalArgumentException(this.externalIndexPath + " does not exist or is not a directory.");
+      }
+      reader = DirectoryReader.open(FSDirectory.open(indexPath));
+    } else {
+      IndexSearcher searcher = context.getIndexSearcher();
+      reader = searcher.getIndexReader();
+    }
+    final long docCount = reader.numDocs() == -1 ? reader.maxDoc() : reader.numDocs();
+
+    //calculate the Mutual Information between term with each query term
+    List<String> queryTerms = context.getQueryTokens();
+    Map<String, Integer> queryTermsCounts = new HashMap<>();
+    for (String qt : queryTerms) {
+      queryTermsCounts.put(qt, queryTermsCounts.getOrDefault(qt, 0) + 1);
+    }
+
+    int docIdsCount = reader.numDocs() == -1 ? reader.maxDoc() : reader.numDocs();
+
+    // Each priority queue corresponds to a query term: The p-queue itself stores all terms
+    // in the reranking pool and their reranking scores to the query term.
+    List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
+    for (Map.Entry<String, Integer> q : queryTermsCounts.entrySet()) {
+      String queryTerm = q.getKey();
+      long df = reader.docFreq(new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm));
+      if (df == 0L) {
+        continue;
+      }
+      float idf = (float) Math.log((1 + docCount)/df);
+      int qtf = q.getValue();
+      if (terms.contains(queryTerm)) {
+        PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
+        Term termq = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
+        double selfMI = computeMICollection(termq, termq, context);
+        LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
+
+        for (String term : terms) {
+          double score;
+          if (term.equals(queryTerm)) { // The mutual information to itself will always be 1
+            score = idf * qtf;
+          } else {
+            Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
+            Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, term);
+            double crossMI = computeMICollection(termx, termy, context);
+            LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
+            score = idf * beta * qtf * crossMI / selfMI;
+          }
+          termScorePQ.add(Pair.of(term, score));
         }
         allTermScoresPQ.add(termScorePQ);
       }
