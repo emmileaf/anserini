@@ -186,8 +186,6 @@ public final class SearchCollection implements Closeable {
             out.println(String.format(Locale.US, "%s Q0 %s %d %f %s", qid,
                 docs.documents[i].getField(FIELD_ID).stringValue(), (i + 1), docs.scores[i], runTag));
           }
-          // Remove: only run 1 query for debugging
-//          break;
         }
         out.flush();
         out.close();

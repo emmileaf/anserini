@@ -150,19 +150,19 @@ public class AxiomReranker<T> implements Reranker<T> {
       // First to search against external index if it is not null
       docs = processExternalContext(docs, context);
       // Select R*M docs from the original ranking list as the reranking pool
-      Set<Integer> usedDocs = selectDocs(docs, context, true);
+      Set<Integer> usedDocs = selectDocs(docs, context);
       Map<String, Double> expandedTermScores;
 
       if (useCollection) {
+        // Using entire collection as working set, instead of sampling R*N documents as reranking pool
         // Extract terms list from top documents
         List<String> termsList = extractTermsList(usedDocs, context, null);
         LOG.info("Extracted list of " + String.valueOf(termsList.size()) + " terms.");
-        // Calculate all the terms in the reranking pool and pick top K of them
+        // Calculate scores for all terms and pick top K of them
         expandedTermScores = computeTermScoreCollection(termsList, context);
       } else {
         // Extract an inverted list from the reranking pool
-        Set<Integer> topDocs = selectDocs(docs, context, false);
-        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, topDocs, context, null);
+        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
         LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
         // Calculate all the terms in the reranking pool and pick top K of them
         expandedTermScores = computeTermScore(termInvertedList, context);
@@ -320,14 +320,14 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @param context An instance of RerankerContext
    * @return a Set of {@code R*N} document Ids
    */
-  private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context, Boolean expand)
+  private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context)
     throws IOException {
     LOG.info("selectDocs() called by rerank().");
     Set<Integer> docidSet = new HashSet<>(Arrays.asList(ArrayUtils.toObject(
       Arrays.copyOfRange(docs.ids, 0, Math.min(this.R, docs.ids.length)))));
 
-    if (this.useCollection || !expand) {
-      LOG.info("Using entire collection as working set, selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
+    if (this.useCollection) {
+      LOG.info("Using entire collection as working set: selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
       return docidSet;
     }
 
@@ -381,8 +381,8 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
    * @return A Map of <term -> Set<docId>> kind of a small inverted list where the Set of docIds is where the term occurs
    */
-  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, Set<Integer> topDocIds,
-                                                             RerankerContext<T> context, Pattern filterPattern) throws Exception, IOException {
+  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
+                                                             Pattern filterPattern) throws Exception, IOException {
     LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
@@ -415,12 +415,10 @@ public class AxiomReranker<T> implements Reranker<T> {
         if (term.length() < 2) continue;
         if (!term.matches("[a-z]+")) continue;
         if (filterPattern == null || filterPattern.matcher(term).matches()) {
-          if (!termDocidSets.containsKey(term) && topDocIds.contains(docid)) {
+          if (!termDocidSets.containsKey(term)) {
             termDocidSets.put(term, new HashSet<>());
           }
-          if (termDocidSets.containsKey(term)) {
-            termDocidSets.get(term).add(docid);
-          }
+          termDocidSets.get(term).add(docid);
         }
       }
     }
@@ -430,7 +428,7 @@ public class AxiomReranker<T> implements Reranker<T> {
   /**
    * Extract ALL the terms from the documents pool.
    *
-   * @param docIds The reranking pool, see {@link #selectDocs} for explanations
+   * @param docIds The top document ids, see {@link #selectDocs} for explanations
    * @param context An instance of RerankerContext
    * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
    * @return A List of <String> terms
@@ -542,7 +540,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
     for (Map.Entry<String, Integer> q : queryTermsCounts.entrySet()) {
       String queryTerm = q.getKey();
-      LOG.info("queryTerm: " + queryTerm);
       long df = reader.docFreq(new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm));
       if (df == 0L) {
         continue;
@@ -553,22 +550,15 @@ public class AxiomReranker<T> implements Reranker<T> {
         PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
         double selfMI;
         selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
-        LOG.info("Computed wrt reranking pool: selfMI = " + String.valueOf(selfMI));
-        int count = 0;
         for (Map.Entry<String, Set<Integer>> termEntry : termInvertedList.entrySet()) {
           double score;
           if (termEntry.getKey().equals(queryTerm)) { // The mutual information to itself will always be 1
             score = idf * qtf;
           } else {
             double crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
-            if (count < 2) {
-              LOG.info("Term: " + termEntry.getKey());
-              LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
-            }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(termEntry.getKey(), score));
-          count += 1;
         }
         allTermScoresPQ.add(termScorePQ);
       }
@@ -658,7 +648,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
     for (Map.Entry<String, Integer> q : queryTermsCounts.entrySet()) {
       String queryTerm = q.getKey();
-      LOG.info("queryTerm: " + queryTerm);
       long df = reader.docFreq(new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm));
       if (df == 0L) {
         continue;
@@ -669,9 +658,6 @@ public class AxiomReranker<T> implements Reranker<T> {
         PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
         Term termq = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
         double selfMI = computeMICollection(termq, termq, context);
-        LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
-
-        int count = 0;
         for (String term : terms) {
           double score;
           if (term.equals(queryTerm)) { // The mutual information to itself will always be 1
@@ -680,14 +666,9 @@ public class AxiomReranker<T> implements Reranker<T> {
             Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
             Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, term);
             double crossMI = computeMICollection(termx, termy, context);
-            if (count < 2) {
-              LOG.info("Term: " + term);
-              LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
-            }
             score = idf * beta * qtf * crossMI / selfMI;
           }
           termScorePQ.add(Pair.of(term, score));
-          count += 1;
         }
         allTermScoresPQ.add(termScorePQ);
       }
@@ -739,9 +720,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pY0 = 1.0f * y0 / totalDocCount;
     float pY1 = 1.0f * y1 / totalDocCount;
 
-//    LOG.info(String.format("x1: %d, y1: %d, x0: %d, y0: %d.", x1, y1, x0, y0));
-//    LOG.info(String.format("pX1: %.4f, pY1: %.4f, pX0: %.4f, pY0: %.4f.", pX1, pY1, pX0, pY0));
-
     TermQuery tqx = new TermQuery(termx);
     TermQuery tqy = new TermQuery(termy);
     BooleanQuery query = new BooleanQuery.Builder()
@@ -758,9 +736,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pXY10 = 1.0f * numXY10 / totalDocCount;
     float pXY01 = 1.0f * numXY01 / totalDocCount;
     float pXY00 = 1.0f * numXY00 / totalDocCount;
-
-//    LOG.info(String.format("xy11: %d, xy10: %d, xy01: %d, xy00: %d.", numXY11, numXY10, numXY01, numXY00));
-//    LOG.info(String.format("pXY11: %.4f, pXY10: %.4f, pXY01: %.4f, pXY00: %.4f.", pXY11, pXY10, pXY01, pXY00));
 
     double m00 = 0, m01 = 0, m10 = 0, m11 = 0;
     if (pXY00 != 0) m00 = pXY00 * Math.log(pXY00 / (pX0 * pY0));
@@ -783,9 +758,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pY0 = 1.0f * y0 / totalDocCount;
     float pY1 = 1.0f * y1 / totalDocCount;
 
-//    LOG.info(String.format("x1: %d, y1: %d, x0: %d, y0: %d.", x1, y1, x0, y0));
-//    LOG.info(String.format("pX1: %.4f, pY1: %.4f, pX0: %.4f, pY0: %.4f.", pX1, pY1, pX0, pY0));
-
     //get the intersection of docIds
     Set<Integer> docidsXClone = new HashSet<>(docidsX); // directly operate on docidsX will change it permanently
     docidsXClone.retainAll(docidsY);
@@ -798,9 +770,6 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pXY10 = 1.0f * numXY10 / totalDocCount;
     float pXY01 = 1.0f * numXY01 / totalDocCount;
     float pXY00 = 1.0f * numXY00 / totalDocCount;
-
-//    LOG.info(String.format("xy11: %d, xy10: %d, xy01: %d, xy00: %d.", numXY11, numXY10, numXY01, numXY00));
-//    LOG.info(String.format("pXY11: %.4f, pXY10: %.4f, pXY01: %.4f, pXY00: %.4f.", pXY11, pXY10, pXY01, pXY00));
 
     double m00 = 0, m01 = 0, m10 = 0, m11 = 0;
     if (pXY00 != 0) m00 = pXY00 * Math.log(pXY00 / (pX0 * pY0));
