@@ -34,7 +34,6 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
@@ -105,7 +104,7 @@ public class AxiomReranker<T> implements Reranker<T> {
   private final float beta; // scaling parameter
   private final boolean outputQuery;
   private final boolean searchTweets;
-  private final boolean useCollection;
+  private final boolean useCollection; // whether to use entire collection as working set for MI calculations
 
   public AxiomReranker(String originalIndexPath, String externalIndexPath, String field, boolean deterministic,
                        long seed, int r, int n, float beta, int top, String docidsCachePath,
@@ -154,12 +153,20 @@ public class AxiomReranker<T> implements Reranker<T> {
       Set<Integer> usedDocs = selectDocs(docs, context, true);
       Map<String, Double> expandedTermScores;
 
-      // Extract an inverted list from the reranking pool
-      Set<Integer> topDocs = selectDocs(docs, context, false);
-      Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, topDocs, context, null);
-      LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
-      // Calculate all the terms in the reranking pool and pick top K of them
-      expandedTermScores = computeTermScore(termInvertedList, context);
+      if (useCollection) {
+        // Extract terms list from top documents
+        List<String> termsList = extractTermsList(usedDocs, context, null);
+        LOG.info("Extracted list of " + String.valueOf(termsList.size()) + " terms.");
+        // Calculate all the terms in the reranking pool and pick top K of them
+        expandedTermScores = computeTermScoreCollection(termsList, context);
+      } else {
+        // Extract an inverted list from the reranking pool
+        Set<Integer> topDocs = selectDocs(docs, context, false);
+        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, topDocs, context, null);
+        LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
+        // Calculate all the terms in the reranking pool and pick top K of them
+        expandedTermScores = computeTermScore(termInvertedList, context);
+      }
 
       BooleanQuery.Builder nqBuilder = new BooleanQuery.Builder();
 
@@ -524,19 +531,11 @@ public class AxiomReranker<T> implements Reranker<T> {
       queryTermsCounts.put(qt, queryTermsCounts.getOrDefault(qt, 0) + 1);
     }
 
-    int docIdsCount;
-
-    if (this.useCollection) {
-      // count docids in entire collection
-      docIdsCount = reader.numDocs() == -1 ? reader.maxDoc() : reader.numDocs();
-    } else {
-
-      Set<Integer> allDocIds = new HashSet<>();
-      for (Set<Integer> s : termInvertedList.values()) {
-        allDocIds.addAll(s);
-      }
-      docIdsCount = allDocIds.size();
+    Set<Integer> allDocIds = new HashSet<>();
+    for (Set<Integer> s : termInvertedList.values()) {
+      allDocIds.addAll(s);
     }
+    int docIdsCount = allDocIds.size();
 
     // Each priority queue corresponds to a query term: The p-queue itself stores all terms
     // in the reranking pool and their reranking scores to the query term.
@@ -553,35 +552,18 @@ public class AxiomReranker<T> implements Reranker<T> {
       if (termInvertedList.containsKey(queryTerm)) {
         PriorityQueue<Pair<String, Double>> termScorePQ = new PriorityQueue<>(new ScoreComparator());
         double selfMI;
-        if (useCollection ) {
-          Term termq = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
-          selfMI = computeMICollection(termq, termq, context);
-          LOG.info("Computed wrt to entire collection: selfMI = " + String.valueOf(selfMI));
-        } else {
-          selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
-          LOG.info("Computed wrt reranking pool: selfMI = " + String.valueOf(selfMI));
-        }
+        selfMI = computeMutualInformation(termInvertedList.get(queryTerm), termInvertedList.get(queryTerm), docIdsCount);
+        LOG.info("Computed wrt reranking pool: selfMI = " + String.valueOf(selfMI));
         int count = 0;
         for (Map.Entry<String, Set<Integer>> termEntry : termInvertedList.entrySet()) {
           double score;
           if (termEntry.getKey().equals(queryTerm)) { // The mutual information to itself will always be 1
             score = idf * qtf;
           } else {
-            double crossMI;
-            if (useCollection) {
-              Term termx = new Term(LuceneDocumentGenerator.FIELD_BODY, queryTerm);
-              Term termy = new Term(LuceneDocumentGenerator.FIELD_BODY, termEntry.getKey());
-              crossMI = computeMICollection(termx, termy, context);
-              if (count < 2) {
-                LOG.info("Term: " + termEntry.getKey());
-                LOG.info("Computed wrt to entire collection: crossMI = " + String.valueOf(crossMI));
-              }
-            } else {
-              crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
-              if (count < 2) {
-                LOG.info("Term: " + termEntry.getKey());
-                LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
-              }
+            double crossMI = computeMutualInformation(termInvertedList.get(queryTerm), termEntry.getValue(), docIdsCount);
+            if (count < 2) {
+              LOG.info("Term: " + termEntry.getKey());
+              LOG.info("Computed wrt to reranking pool: crossMI = " + String.valueOf(crossMI));
             }
             score = idf * beta * qtf * crossMI / selfMI;
           }
@@ -671,8 +653,6 @@ public class AxiomReranker<T> implements Reranker<T> {
       queryTermsCounts.put(qt, queryTermsCounts.getOrDefault(qt, 0) + 1);
     }
 
-    int docIdsCount = reader.numDocs() == -1 ? reader.maxDoc() : reader.numDocs();
-
     // Each priority queue corresponds to a query term: The p-queue itself stores all terms
     // in the reranking pool and their reranking scores to the query term.
     List<PriorityQueue<Pair<String, Double>>> allTermScoresPQ = new ArrayList<>();
@@ -759,6 +739,9 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pY0 = 1.0f * y0 / totalDocCount;
     float pY1 = 1.0f * y1 / totalDocCount;
 
+//    LOG.info(String.format("x1: %d, y1: %d, x0: %d, y0: %d.", x1, y1, x0, y0));
+//    LOG.info(String.format("pX1: %.4f, pY1: %.4f, pX0: %.4f, pY0: %.4f.", pX1, pY1, pX0, pY0));
+
     TermQuery tqx = new TermQuery(termx);
     TermQuery tqy = new TermQuery(termy);
     BooleanQuery query = new BooleanQuery.Builder()
@@ -775,6 +758,9 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pXY10 = 1.0f * numXY10 / totalDocCount;
     float pXY01 = 1.0f * numXY01 / totalDocCount;
     float pXY00 = 1.0f * numXY00 / totalDocCount;
+
+//    LOG.info(String.format("xy11: %d, xy10: %d, xy01: %d, xy00: %d.", numXY11, numXY10, numXY01, numXY00));
+//    LOG.info(String.format("pXY11: %.4f, pXY10: %.4f, pXY01: %.4f, pXY00: %.4f.", pXY11, pXY10, pXY01, pXY00));
 
     double m00 = 0, m01 = 0, m10 = 0, m11 = 0;
     if (pXY00 != 0) m00 = pXY00 * Math.log(pXY00 / (pX0 * pY0));
@@ -797,6 +783,9 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pY0 = 1.0f * y0 / totalDocCount;
     float pY1 = 1.0f * y1 / totalDocCount;
 
+//    LOG.info(String.format("x1: %d, y1: %d, x0: %d, y0: %d.", x1, y1, x0, y0));
+//    LOG.info(String.format("pX1: %.4f, pY1: %.4f, pX0: %.4f, pY0: %.4f.", pX1, pY1, pX0, pY0));
+
     //get the intersection of docIds
     Set<Integer> docidsXClone = new HashSet<>(docidsX); // directly operate on docidsX will change it permanently
     docidsXClone.retainAll(docidsY);
@@ -809,6 +798,9 @@ public class AxiomReranker<T> implements Reranker<T> {
     float pXY10 = 1.0f * numXY10 / totalDocCount;
     float pXY01 = 1.0f * numXY01 / totalDocCount;
     float pXY00 = 1.0f * numXY00 / totalDocCount;
+
+//    LOG.info(String.format("xy11: %d, xy10: %d, xy01: %d, xy00: %d.", numXY11, numXY10, numXY01, numXY00));
+//    LOG.info(String.format("pXY11: %.4f, pXY10: %.4f, pXY01: %.4f, pXY00: %.4f.", pXY11, pXY10, pXY01, pXY00));
 
     double m00 = 0, m01 = 0, m10 = 0, m11 = 0;
     if (pXY00 != 0) m00 = pXY00 * Math.log(pXY00 / (pX0 * pY0));
