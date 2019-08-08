@@ -144,7 +144,7 @@ public class AxiomReranker<T> implements Reranker<T> {
   @Override
   public ScoredDocuments rerank(ScoredDocuments docs, RerankerContext<T> context) {
     assert(docs.documents.length == docs.scores.length);
-    LOG.info("Reranking with AxiomReranker.rerank().");
+//    LOG.info("Reranking with AxiomReranker.rerank().");
 
     try {
       // First to search against external index if it is not null
@@ -157,13 +157,13 @@ public class AxiomReranker<T> implements Reranker<T> {
         // Using entire collection as working set, instead of sampling R*N documents as reranking pool
         // Extract terms list from top documents
         List<String> termsList = extractTermsList(usedDocs, context, null);
-        LOG.info("Extracted list of " + String.valueOf(termsList.size()) + " terms.");
+//        LOG.info("Extracted list of " + String.valueOf(termsList.size()) + " terms.");
         // Calculate scores for all terms and pick top K of them
         expandedTermScores = computeTermScoreCollection(termsList, context);
       } else {
         // Extract an inverted list from the reranking pool
         Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
-        LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
+//        LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
         // Calculate all the terms in the reranking pool and pick top K of them
         expandedTermScores = computeTermScore(termInvertedList, context);
       }
@@ -285,7 +285,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return Top ranked ScoredDocuments from searching external index
    */
   private ScoredDocuments processExternalContext(ScoredDocuments docs, RerankerContext<T> context) throws IOException {
-    LOG.info("processExternalContext() called by rerank().");
+//    LOG.info("processExternalContext() called by rerank().");
     if (this.externalIndexPath != null) {
       Path indexPath = Paths.get(this.externalIndexPath);
       if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
@@ -305,7 +305,7 @@ public class AxiomReranker<T> implements Reranker<T> {
 
       return searchTopDocs(null, externalContext);
     } else {
-      LOG.info("processExternalContext(): no externalIndexPath provided");
+//      LOG.info("processExternalContext(): no externalIndexPath provided");
       return docs;
     }
   }
@@ -322,17 +322,17 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context)
     throws IOException {
-    LOG.info("selectDocs() called by rerank().");
+//    LOG.info("selectDocs() called by rerank().");
     Set<Integer> docidSet = new HashSet<>(Arrays.asList(ArrayUtils.toObject(
       Arrays.copyOfRange(docs.ids, 0, Math.min(this.R, docs.ids.length)))));
 
     if (this.useCollection) {
-      LOG.info("Using entire collection as working set: selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
+//      LOG.info("Using entire collection as working set: selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
       return docidSet;
     }
 
     long targetSize = this.R * this.N;
-    LOG.info("Target size from selectDocs(): " + String.valueOf(targetSize));
+//    LOG.info("Target size from selectDocs(): " + String.valueOf(targetSize));
 
     if (docidSet.size() < targetSize) {
       IndexReader reader;
@@ -383,7 +383,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
                                                              Pattern filterPattern) throws Exception, IOException {
-    LOG.info("extractTermsInvertedList() called by rerank().");
+//    LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
@@ -435,7 +435,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private List<String> extractTermsList(Set<Integer> docIds, RerankerContext<T> context,
                                                  Pattern filterPattern) throws Exception, IOException {
-    LOG.info("extractTermsList() called by rerank().");
+//    LOG.info("extractTermsList() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
@@ -496,7 +496,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Double> computeTermScore(
           Map<String, Set<Integer>> termInvertedList, RerankerContext<T> context) throws IOException {
-    LOG.info("computeTermScore() called by rerank().");
+//    LOG.info("computeTermScore() called by rerank().");
     class ScoreComparator implements Comparator<Pair<String, Double>> {
       public int compare(Pair<String, Double> a, Pair<String, Double> b) {
         int cmp = Double.compare(b.getRight(), a.getRight());
@@ -610,7 +610,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return Map<String, Double> Top terms and their weight scores in a HashMap
    */
   private Map<String, Double> computeTermScoreCollection(List<String> terms, RerankerContext<T> context) throws IOException {
-    LOG.info("computeTermScoreCollection() called by rerank().");
+//    LOG.info("computeTermScoreCollection() called by rerank().");
     class ScoreComparator implements Comparator<Pair<String, Double>> {
       public int compare(Pair<String, Double> a, Pair<String, Double> b) {
         int cmp = Double.compare(b.getRight(), a.getRight());
