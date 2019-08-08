@@ -150,7 +150,7 @@ public class AxiomReranker<T> implements Reranker<T> {
       // First to search against external index if it is not null
       docs = processExternalContext(docs, context);
       // Select R*M docs from the original ranking list as the reranking pool
-      Set<Integer> usedDocs = selectDocs(docs, context, true);
+      Set<Integer> usedDocs = selectDocs(docs, context);
       Map<String, Double> expandedTermScores;
 
       if (useCollection) {
@@ -162,8 +162,7 @@ public class AxiomReranker<T> implements Reranker<T> {
         expandedTermScores = computeTermScoreCollection(termsList, context);
       } else {
         // Extract an inverted list from the reranking pool
-        Set<Integer> topDocs = selectDocs(docs, context, false);
-        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, topDocs, context, null);
+        Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
         LOG.info("Extracted map of " + String.valueOf(termInvertedList.size()) + " terms.");
         // Calculate all the terms in the reranking pool and pick top K of them
         expandedTermScores = computeTermScore(termInvertedList, context);
@@ -321,13 +320,13 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @param context An instance of RerankerContext
    * @return a Set of {@code R*N} document Ids
    */
-  private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context, Boolean expand)
+  private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context)
     throws IOException {
     LOG.info("selectDocs() called by rerank().");
     Set<Integer> docidSet = new HashSet<>(Arrays.asList(ArrayUtils.toObject(
       Arrays.copyOfRange(docs.ids, 0, Math.min(this.R, docs.ids.length)))));
 
-    if (this.useCollection || !expand) {
+    if (this.useCollection) {
       LOG.info("Using entire collection as working set: selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
       return docidSet;
     }
@@ -382,7 +381,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
    * @return A Map of <term -> Set<docId>> kind of a small inverted list where the Set of docIds is where the term occurs
    */
-  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, Set<Integer> topDocIds, RerankerContext<T> context,
+  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
                                                              Pattern filterPattern) throws Exception, IOException {
     LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
@@ -416,12 +415,10 @@ public class AxiomReranker<T> implements Reranker<T> {
         if (term.length() < 2) continue;
         if (!term.matches("[a-z]+")) continue;
         if (filterPattern == null || filterPattern.matcher(term).matches()) {
-          if (!termDocidSets.containsKey(term) && topDocIds.contains(docid)) {
+          if (!termDocidSets.containsKey(term)) {
             termDocidSets.put(term, new HashSet<>());
           }
-          if (termDocidSets.containsKey(term)) {
-            termDocidSets.get(term).add(docid);
-          }
+          termDocidSets.get(term).add(docid);
         }
       }
     }
