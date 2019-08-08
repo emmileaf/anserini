@@ -153,8 +153,8 @@ public class AxiomReranker<T> implements Reranker<T> {
       // Selects R docs if entire collection used as working set
       Set<Integer> usedDocs = selectDocs(docs, context);
       // Extract an inverted list from the reranking pool
-      Map<String, Set<Integer>> termInvertedList = extractTermsInvertedList(usedDocs, context, null);
-      // Calculate all the terms in the reranking pool and pick top K of the
+      Map<String, Set<Integer>> termInvertedList = extractTerms(usedDocs, context, null);
+      // Calculate all the terms in the reranking pool and pick top K of them
       Map<String, Double> expandedTermScores = computeTermScore(termInvertedList, context);
 
       BooleanQuery.Builder nqBuilder = new BooleanQuery.Builder();
@@ -364,14 +364,14 @@ public class AxiomReranker<T> implements Reranker<T> {
 
   /**
    * Extract ALL the terms from the documents pool.
-   * If using entire collection as working set, returns empty set of docids for each term since it will not  be used
+   * If using entire collection as working set, returns empty set of docids for each term since it will not be used
    *
    * @param docIds The reranking pool, see {@link #selectDocs} for explanations
    * @param context An instance of RerankerContext
    * @param filterPattern A Regex pattern that terms are collected only they matches the pattern, could be null
    * @return A Map of <term -> Set<docId>> kind of a small inverted list where the Set of docIds is where the term occurs
    */
-  private Map<String, Set<Integer>> extractTermsInvertedList(Set<Integer> docIds, RerankerContext<T> context,
+  private Map<String, Set<Integer>> extractTerms(Set<Integer> docIds, RerankerContext<T> context,
                                                              Pattern filterPattern) throws Exception, IOException {
 //    LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
