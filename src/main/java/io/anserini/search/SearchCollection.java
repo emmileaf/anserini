@@ -407,6 +407,7 @@ public final class SearchCollection implements Closeable {
 
     List<String> queryTokens = AnalyzerUtils.tokenize(analyzer, queryString);
     RerankerContext context = new RerankerContext<>(searcher, qid, query, null, queryString, queryTokens, null, args);
+
     return cascade.run(ScoredDocuments.fromTopDocs(rs, searcher), context);
   }
   

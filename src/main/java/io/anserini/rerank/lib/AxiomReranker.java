@@ -366,7 +366,7 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return A Map of <term -> Set<docId>> kind of a small inverted list where the Set of docIds is where the term occurs
    */
   private Map<String, Set<Integer>> extractTerms(Set<Integer> docIds, RerankerContext<T> context,
-                                                             Pattern filterPattern) throws Exception, IOException {
+                                                 Pattern filterPattern) throws Exception, IOException {
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
