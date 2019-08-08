@@ -144,7 +144,6 @@ public class AxiomReranker<T> implements Reranker<T> {
   @Override
   public ScoredDocuments rerank(ScoredDocuments docs, RerankerContext<T> context) {
     assert(docs.documents.length == docs.scores.length);
-//    LOG.info("Reranking with AxiomReranker.rerank().");
 
     try {
       // First to search against external index if it is not null
@@ -274,7 +273,6 @@ public class AxiomReranker<T> implements Reranker<T> {
    * @return Top ranked ScoredDocuments from searching external index
    */
   private ScoredDocuments processExternalContext(ScoredDocuments docs, RerankerContext<T> context) throws IOException {
-//    LOG.info("processExternalContext() called by rerank().");
     if (this.externalIndexPath != null) {
       Path indexPath = Paths.get(this.externalIndexPath);
       if (!Files.exists(indexPath) || !Files.isDirectory(indexPath) || !Files.isReadable(indexPath)) {
@@ -294,7 +292,6 @@ public class AxiomReranker<T> implements Reranker<T> {
 
       return searchTopDocs(null, externalContext);
     } else {
-//      LOG.info("processExternalContext(): no externalIndexPath provided");
       return docs;
     }
   }
@@ -311,17 +308,14 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Set<Integer> selectDocs(ScoredDocuments docs, RerankerContext<T> context)
     throws IOException {
-//    LOG.info("selectDocs() called by rerank().");
     Set<Integer> docidSet = new HashSet<>(Arrays.asList(ArrayUtils.toObject(
       Arrays.copyOfRange(docs.ids, 0, Math.min(this.R, docs.ids.length)))));
 
     if (this.useCollection) {
-//      LOG.info("Using entire collection as working set: selectDocs() returning top docs, length " + String.valueOf(docidSet.size()));
       return docidSet;
     }
 
     long targetSize = this.R * this.N;
-//    LOG.info("Target size from selectDocs(): " + String.valueOf(targetSize));
 
     if (docidSet.size() < targetSize) {
       IndexReader reader;
@@ -373,7 +367,6 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Set<Integer>> extractTerms(Set<Integer> docIds, RerankerContext<T> context,
                                                              Pattern filterPattern) throws Exception, IOException {
-//    LOG.info("extractTermsInvertedList() called by rerank().");
     IndexReader reader;
     IndexSearcher searcher;
     if (this.externalIndexPath != null) {
@@ -382,7 +375,6 @@ public class AxiomReranker<T> implements Reranker<T> {
         throw new IllegalArgumentException(this.externalIndexPath + " does not exist or is not a directory.");
       }
       reader = DirectoryReader.open(FSDirectory.open(indexPath));
-//      searcher = new IndexSearcher(reader);
     } else {
       searcher = context.getIndexSearcher();
       reader = searcher.getIndexReader();
@@ -440,7 +432,6 @@ public class AxiomReranker<T> implements Reranker<T> {
    */
   private Map<String, Double> computeTermScore(
           Map<String, Set<Integer>> termInvertedList, RerankerContext<T> context) throws IOException {
-//    LOG.info("computeTermScore() called by rerank().");
     class ScoreComparator implements Comparator<Pair<String, Double>> {
       public int compare(Pair<String, Double> a, Pair<String, Double> b) {
         int cmp = Double.compare(b.getRight(), a.getRight());
