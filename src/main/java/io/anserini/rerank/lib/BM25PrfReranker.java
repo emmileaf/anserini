@@ -119,6 +119,8 @@ public class BM25PrfReranker implements Reranker {
         rs = searcher.search(newQuery, context.getSearchArgs().hits, BREAK_SCORE_TIES_BY_TWEETID, true);
       } else {
         rs = searcher.search(newQuery, context.getSearchArgs().hits, BREAK_SCORE_TIES_BY_DOCID, true);
+        LOG.info("Doc: " + String.valueOf(rs.scoreDocs[0].doc) + ", Score: " + String.valueOf(rs.scoreDocs[0].score));
+        LOG.info("Doc: " + String.valueOf(rs.scoreDocs[1].doc) + ", Score: " + String.valueOf(rs.scoreDocs[1].score));
       }
     } catch (IOException e) {
       e.printStackTrace();
@@ -126,7 +128,10 @@ public class BM25PrfReranker implements Reranker {
     }
     // set similarity back
     searcher.setSimilarity(originalSimilarity);
-    return ScoredDocuments.fromTopDocs(rs, searcher);
+    ScoredDocuments scoredDocs = ScoredDocuments.fromTopDocs(rs, searcher);
+    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[0]) + ", Score: " + String.valueOf(scoredDocs.scores[0]));
+    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[1]) + ", Score: " + String.valueOf(scoredDocs.scores[1]));
+    return scoredDocs;
   }
 
   private PrfFeatures expandQuery(List<String> originalTerms, ScoredDocuments docs, IndexReader reader) {
