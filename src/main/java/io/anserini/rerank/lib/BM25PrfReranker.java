@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.anserini.index.generator.LuceneDocumentGenerator.FIELD_BODY;
+import static io.anserini.index.generator.LuceneDocumentGenerator.FIELD_ID;
 import static io.anserini.search.SearchCollection.BREAK_SCORE_TIES_BY_DOCID;
 import static io.anserini.search.SearchCollection.BREAK_SCORE_TIES_BY_TWEETID;
 
@@ -129,8 +130,8 @@ public class BM25PrfReranker implements Reranker {
     // set similarity back
     searcher.setSimilarity(originalSimilarity);
     ScoredDocuments scoredDocs = ScoredDocuments.fromTopDocs(rs, searcher);
-    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[0]) + ", Score: " + String.valueOf(scoredDocs.scores[0]));
-    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[1]) + ", Score: " + String.valueOf(scoredDocs.scores[1]));
+    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[0]) + ", ID: " + scoredDocs.documents[0].getField(FIELD_ID) + ", Score: " + String.valueOf(scoredDocs.scores[0]));
+    LOG.info("scoredDoc: " + String.valueOf(scoredDocs.ids[1]) + ", ID: " + scoredDocs.documents[1].getField(FIELD_ID) + ", Score: " + String.valueOf(scoredDocs.scores[1]));
     return scoredDocs;
   }
 
